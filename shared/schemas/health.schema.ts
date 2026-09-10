@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const healthSchema = z.object({
   status: z.literal("ok"),
-  uptime: z.number().int().nonnegative(),
+  uptime: z.number().nonnegative(),
 });
 
 export type Health = z.infer<typeof healthSchema>;
