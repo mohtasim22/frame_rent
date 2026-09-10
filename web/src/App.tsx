@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Badge } from "./components/ui/badge";
-import { Skeleton } from "./components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { healthSchema, type Health } from "@shared/schemas/health.schema";
 
-type Health = {
-  status: string;
-  uptime: number;
-};
+
+
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -22,7 +21,7 @@ export default function App() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`API responded ${res.status}`);
         const body = await res.json();
-        setHealth(body.data);
+        setHealth(healthSchema.parse(body.data));
       })
       .catch((err: unknown) => {
         if (err instanceof Error && err.name === "AbortError") return;

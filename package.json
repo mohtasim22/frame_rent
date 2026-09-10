@@ -1,0 +1,7 @@
+{
+  "name": "framerent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Camera and lens rental platform",
+  "workspaces": ["api", "web", "shared"]
+}
