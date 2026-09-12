@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -14,6 +9,50 @@ datasource db {
 
 //-------------------------------------//
 
+enum Role {
+  RENTER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PICKED_UP
+  RETURNED
+  CANCELLED
+  OVERDUE
+}
+
+enum UnitStatus {
+  AVAILABLE
+  MAINTENANCE
+  RETIRED
+}
+
+enum UnitCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          Role     @default(RENTER)
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bookings Booking[]
+  reviews  Review[]
+
+  @@map("users")
+}
+
 model Brand {
   id        String   @id @default(uuid())
   name      String   @unique
@@ -21,5 +60,169 @@ model Brand {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  products Product[]
+
   @@map("brands")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String
+  images      String[]
+  specs       Json     @default("{}")
+
+  dailyRateCents    Int
+  weeklyRateCents   Int?
+  depositCents      Int
+  replacementCents  Int
+
+  mount      String?
+  bufferDays Int     @default(1)
+  isActive   Boolean @default(true)
+
+  brandId    String
+  categoryId String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  units   GearUnit[]
+  reviews Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([mount])
+  @@index([isActive])
+  @@map("products")
+}
+
+model GearUnit {
+  id           String        @id @default(uuid())
+  serialNumber String        @unique
+  condition    UnitCondition @default(EXCELLENT)
+  status       UnitStatus    @default(AVAILABLE)
+  notes        String?
+  acquiredAt   DateTime      @default(now())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  bookingItems     BookingItem[]
+  maintenanceHolds MaintenanceHold[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@map("gear_units")
+}
+
+model Booking {
+  id        String        @id @default(uuid())
+  reference String        @unique
+  status    BookingStatus @default(PENDING)
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  subtotalCents Int
+  depositCents  Int
+  feeCents      Int @default(0)
+  totalCents    Int
+
+  pickupMethod String?
+  notes        String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  items  BookingItem[]
+  review Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("bookings")
+}
+
+model BookingItem {
+  id String @id @default(uuid())
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  gearUnitId String
+  gearUnit   GearUnit @relation(fields: [gearUnitId], references: [id], onDelete: Restrict)
+
+  // Snapshots — these must not change when the catalogue changes.
+  productName    String
+  dailyRateCents Int
+  days           Int
+  lineTotalCents Int
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([gearUnitId])
+  @@map("booking_items")
+}
+
+model MaintenanceHold {
+  id     String @id @default(uuid())
+  reason String
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  gearUnitId String
+  gearUnit   GearUnit @relation(fields: [gearUnitId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gearUnitId])
+  @@index([startDate, endDate])
+  @@map("maintenance_holds")
+}
+
+model Review {
+  id     String  @id @default(uuid())
+  rating Int
+  body   String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("reviews")
 }
