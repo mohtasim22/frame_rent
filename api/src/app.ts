@@ -3,16 +3,14 @@ import cors from "cors";
 import type { Health } from "@shared/schemas/health.schema";
 import type { ApiSuccess } from "@shared/types/api";
 import { prisma } from "./lib/prisma";
+import { env } from "./config/env";
 
-
-// B4 will move this into a zod-validated env config.
-const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:5173";
 
 export const app = express();
 
 app.use(
   cors({
-    origin: WEB_ORIGIN,
+    origin: env.WEB_ORIGIN,
     credentials: true,
   })
 );
