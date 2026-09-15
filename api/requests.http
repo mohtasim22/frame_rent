@@ -1,0 +1,71 @@
+@baseUrl = http://localhost:4000
+@api = {{baseUrl}}/api/v1
+
+### Health — expect 200, status "ok"
+GET {{baseUrl}}/health
+
+### Brands — expect 11, alphabetical
+GET {{api}}/brands
+
+
+############################## GEAR — LIST ##############################
+
+### Default — expect 12 items, meta.total 21, totalPages 2
+GET {{api}}/gear
+
+### Page 2 — expect 9 items
+GET {{api}}/gear?page=2
+
+### Past the end — expect 200 with an empty array, NOT 404
+GET {{api}}/gear?page=3
+
+### Category — expect total 8
+GET {{api}}/gear?category=lenses
+
+### Brand — expect total 5
+GET {{api}}/gear?brand=canon
+
+### Mount + price — expect the two Sigmas
+GET {{api}}/gear?mount=E&maxCents=4000
+
+### Text search, case-insensitive — expect 3
+GET {{api}}/gear?q=SONY
+
+### Combined filter and sort — expect 8, Sony FE 70-200 first
+GET {{api}}/gear?category=lenses&sort=price-desc
+
+### No matches — expect 200 with an empty array
+GET {{api}}/gear?category=drones
+
+
+############################## GEAR — DETAIL ##############################
+
+### By slug — expect 200, specs.kind "body", 2 units
+GET {{api}}/gear/canon-eos-r5
+
+### By slug — expect 200, specs.kind "lens"
+GET {{api}}/gear/sigma-35mm-f14-dg-dn-art
+
+
+############################## EXPECTED FAILURES ##############################
+
+### Unknown slug — expect 404 NOT_FOUND
+GET {{api}}/gear/does-not-exist
+
+### Malformed slug — expect 400 VALIDATION_ERROR
+GET {{api}}/gear/Canon%20EOS
+
+### Non-numeric page — expect 400 VALIDATION_ERROR
+GET {{api}}/gear?page=abc
+
+### Invalid sort — expect 400 listing the valid options
+GET {{api}}/gear?sort=cheapest
+
+### Page size above the cap — expect 400
+GET {{api}}/gear?perPage=10000
+
+### Min greater than max — expect 400
+GET {{api}}/gear?minCents=9000&maxCents=1000
+
+### Unknown route — expect 404 NOT_FOUND
+GET {{api}}/nope
