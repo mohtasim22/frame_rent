@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { healthSchema, type Health } from "@shared/schemas/health.schema";
+import { api, ApiError } from "./api/client";
 
 
 
@@ -12,24 +13,19 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+  const controller = new AbortController();
 
-    fetch(`${import.meta.env.VITE_API_URL}/health`, {
-      credentials: "include",
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`API responded ${res.status}`);
-        const body = await res.json();
-        setHealth(healthSchema.parse(body.data));
-      })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Request failed");
-      });
+  api
+    .get("/health", { schema: healthSchema, signal: controller.signal })
+    .then(({ data }) => setHealth(data))
+    .catch((err: unknown) => {
+      if (controller.signal.aborted) return;
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    });
 
-    return () => controller.abort();
-  }, []);
+  return () => controller.abort();
+}, []);
+
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
