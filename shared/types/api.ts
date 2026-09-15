@@ -5,6 +5,7 @@ export type ApiSuccess<T> = {
     page: number;
     perPage: number;
     total: number;
+    totalPages: number;
   };
 };
 
