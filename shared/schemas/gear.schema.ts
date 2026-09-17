@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MOUNTS } from "./specs.schema";
+import { MOUNTS, productSpecsSchema } from "./specs.schema";
 
 export const GEAR_SORTS = ["name", "price-asc", "price-desc", "newest"] as const;
 export type GearSort = (typeof GEAR_SORTS)[number];
@@ -33,3 +33,25 @@ export const gearSlugParamsSchema = z.object({
     .max(120)
     .regex(/^[a-z0-9-]+$/, "slug may only contain lowercase letters, numbers and hyphens"),
 });
+
+const refSchema = z.object({ id: z.string(), name: z.string(), slug: z.string() });
+
+export const gearItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string(),
+  images: z.array(z.string()),
+  specs: productSpecsSchema,
+  dailyRateCents: z.number().int(),
+  weeklyRateCents: z.number().int().nullable(),
+  depositCents: z.number().int(),
+  replacementCents: z.number().int(),
+  mount: z.string().nullable(),
+  bufferDays: z.number().int(),
+  brand: refSchema,
+  category: refSchema,
+  _count: z.object({ units: z.number().int() }),
+});
+
+export type GearItem = z.infer<typeof gearItemSchema>;

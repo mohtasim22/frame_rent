@@ -1,53 +1,36 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { healthSchema, type Health } from "@shared/schemas/health.schema";
-import { api, ApiError } from "./api/client";
-
-
-
+import { cn } from "@/lib/utils";
+import { useHealth } from "@/hooks/useHealth";
+import { GearListPage } from "@/pages/GearListPage";
 
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-  const controller = new AbortController();
-
-  api
-    .get("/health", { schema: healthSchema, signal: controller.signal })
-    .then(({ data }) => setHealth(data))
-    .catch((err: unknown) => {
-      if (controller.signal.aborted) return;
-      setError(err instanceof ApiError ? err.message : "Something went wrong.");
-    });
-
-  return () => controller.abort();
-}, []);
-
+  const health = useHealth();
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>FrameRent</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <p className="text-sm text-destructive">API unreachable — {error}</p>
-          ) : health ? (
-            <div className="flex items-center gap-2">
-              <Badge>{health.status}</Badge>
-              <span className="text-sm text-muted-foreground">
-                up {health.uptime}s
-              </span>
-            </div>
-          ) : (
-            <Skeleton className="h-6 w-32" />
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <div className="min-h-screen">
+      <header className="border-b">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
+          <span className="font-semibold tracking-tight">FrameRent</span>
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span
+              className={cn(
+                "size-2 rounded-full",
+                health.isSuccess
+                  ? "bg-emerald-500"
+                  : health.isError
+                    ? "bg-destructive"
+                    : "bg-muted-foreground/40",
+              )}
+            />
+            {health.isSuccess
+              ? `API up ${Math.round(health.data.uptime)}s`
+              : health.isError
+                ? "API unreachable"
+                : "checking…"}
+          </span>
+        </div>
+      </header>
+
+      <GearListPage />
+    </div>
   );
 }
