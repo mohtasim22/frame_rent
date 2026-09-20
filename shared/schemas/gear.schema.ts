@@ -55,3 +55,34 @@ export const gearItemSchema = z.object({
 });
 
 export type GearItem = z.infer<typeof gearItemSchema>;
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_WINDOW_DAYS = 92;
+
+export const availabilityQuerySchema = z
+  .object({
+    from: z.string().regex(DATE_PATTERN, "from must be a YYYY-MM-DD date"),
+    to: z.string().regex(DATE_PATTERN, "to must be a YYYY-MM-DD date"),
+  })
+  .refine((v) => v.from <= v.to, {
+    message: "from must not be after to",
+    path: ["from"],
+  })
+  .refine(
+    (v) =>
+      (Date.parse(`${v.to}T00:00:00Z`) - Date.parse(`${v.from}T00:00:00Z`)) / 86_400_000 <
+      MAX_WINDOW_DAYS,
+    { message: `the window must be shorter than ${MAX_WINDOW_DAYS} days`, path: ["to"] },
+  );
+
+export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
+
+export const availabilityResponseSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  unavailableDates: z.array(z.string()),
+});
+
+export type AvailabilityResponse = z.infer<typeof availabilityResponseSchema>;
+
+

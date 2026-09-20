@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import type { ApiSuccess } from "@shared/types/api";
-import { gearQuerySchema, gearSlugParamsSchema } from "@shared/schemas/gear.schema";
+import { availabilityQuerySchema, AvailabilityResponse, gearQuerySchema, gearSlugParamsSchema } from "@shared/schemas/gear.schema";
 import { gearService } from "./gear.service";
+import { availabilityService } from "../availability/availability.service";
 
 export const gearController = {
   async list(req: Request, res: Response) {
@@ -27,5 +28,19 @@ export const gearController = {
     const body: ApiSuccess<typeof product> = { success: true, data: product };
     res.json(body);
   },
+    async availability(req: Request, res: Response) {
+    const { slug } = gearSlugParamsSchema.parse(req.params);
+    const { from, to } = availabilityQuerySchema.parse(req.query);
+
+    const product = await gearService.getBySlug(slug);
+    const unavailableDates = await availabilityService.getUnavailableDates(product.id, from, to);
+
+    const body: ApiSuccess<AvailabilityResponse> = {
+      success: true,
+      data: { from, to, unavailableDates },
+    };
+    res.json(body);
+  },
+
 
 };

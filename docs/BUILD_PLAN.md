@@ -1,10 +1,10 @@
 # FrameRent — Build Plan
 
 **The plan — why, and in what order:**
-https://claude.ai/code/artifact/6c3b401c-503e-4bed-adc1-1b2c2aee230d
+https://claude.ai/artifact/JxESZAzvG2dCDtQLa6eGDL
 
 **The slice backlog — what to do today (ticks are saved):**
-https://claude.ai/code/artifact/2b90a1e2-10b1-4458-92ea-73cd800a5f98
+https://claude.ai/artifact/91SYHUm8zmtGneQciPqvsB
 
 A camera & lens rental web app. Second project, after a MERN parcel-delivery app.
 Built as a **separate Express API and React client in one repository**.
@@ -55,15 +55,15 @@ Roles: **renter + admin** (not a peer-to-peer marketplace).
 
 The backlog breaks these into 66 vertical slices.
 
-- [ ] **A — Two apps, one command.** Both halves running, health check across the wire, `shared/` resolving.
-- [ ] **B — Schema and seed.** One model end to end first, then all nine.
-- [ ] **C — The gear API.** Endpoints only, tested in Postman. No UI.
-- [ ] **D — The catalogue.** React consuming the API. Deploy both halves here.
+- [x] **A — Two apps, one command.** Both halves running, health check across the wire, `shared/` resolving.
+- [x] **B — Schema and seed.** One model end to end first, then all nine.
+- [x] **C — The gear API.** Endpoints only, tested in Postman. No UI.
+- [x] **D — The catalogue.** React consuming the API, filters, pagination, designed dead ends. (D9 deploy deferred to group I.)
 - [ ] **E — Availability.** Overlap logic, tests, calendar.
 - [ ] **F — Booking.** Server-side pricing, the transaction, the race test.
 - [ ] **G — Auth across two origins.** The cookie tax.
 - [ ] **H — Admin.** Inventory, units, holds, booking lifecycle.
-- [ ] **I — Ship.** Production CORS, Stripe, email, reviews, READMEs.
+- [ ] **I — Ship.** Deploy both halves (deferred D9), production CORS, Stripe, email, reviews, READMEs.
 
 ## The rule that shapes everything
 

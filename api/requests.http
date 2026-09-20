@@ -69,3 +69,24 @@ GET {{api}}/gear?minCents=9000&maxCents=1000
 
 ### Unknown route — expect 404 NOT_FOUND
 GET {{api}}/nope
+
+
+### Categories — expect 5
+GET {{api}}/categories
+
+############################## AVAILABILITY ##############################
+
+### Free window — expect unavailableDates: []
+GET {{api}}/gear/canon-eos-r5/availability?from=2026-03-01&to=2026-03-15
+
+### Unknown slug — expect 404 NOT_FOUND
+GET {{api}}/gear/does-not-exist/availability?from=2026-03-01&to=2026-03-15
+
+### Bad date format — expect 400 VALIDATION_ERROR
+GET {{api}}/gear/canon-eos-r5/availability?from=01-03-2026&to=2026-03-15
+
+### Reversed range — expect 400
+GET {{api}}/gear/canon-eos-r5/availability?from=2026-03-15&to=2026-03-01
+
+### Window too long — expect 400
+GET {{api}}/gear/canon-eos-r5/availability?from=2026-01-01&to=2026-12-31

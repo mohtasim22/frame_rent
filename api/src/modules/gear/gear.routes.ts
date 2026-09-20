@@ -5,4 +5,4 @@ export const gearRoutes = Router();
 
 gearRoutes.get("/", gearController.list);
 gearRoutes.get("/:slug", gearController.getBySlug);
-
+gearRoutes.get("/:slug/availability", gearController.availability);

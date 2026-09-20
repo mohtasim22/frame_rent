@@ -2,13 +2,19 @@ import { Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { GearItem } from "@shared/schemas/gear.schema";
 import { formatCents } from "@/lib/format";
+import { Link } from "react-router";
+import { useState } from "react";
 
 export function GearCard({ item }: { item: GearItem }) {
-  const image = item.images[0];
   const units = item._count.units;
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = imageFailed ? undefined : item.images[0];
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/25">
+    <Link
+      to={`/gear/${item.slug}`}
+      className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-foreground/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
       <div className="relative aspect-4/3 overflow-hidden bg-muted">
         {image ? (
           <img
@@ -16,6 +22,7 @@ export function GearCard({ item }: { item: GearItem }) {
             alt={item.name}
             loading="lazy"
             decoding="async"
+            onError={() => setImageFailed(true)}
             className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
@@ -44,7 +51,10 @@ export function GearCard({ item }: { item: GearItem }) {
           <div>
             <p className="text-base font-semibold">
               {formatCents(item.dailyRateCents)}
-              <span className="text-xs font-normal text-muted-foreground"> / day</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {" "}
+                / day
+              </span>
             </p>
             {item.weeklyRateCents !== null && (
               <p className="text-xs text-muted-foreground">
@@ -58,6 +68,6 @@ export function GearCard({ item }: { item: GearItem }) {
           </span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }

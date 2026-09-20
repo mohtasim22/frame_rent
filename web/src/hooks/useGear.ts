@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getGear, getGearBySlug, type GearFilters } from "@/api/gear";
 
 export const gearKeys = {
@@ -11,8 +11,10 @@ export function useGear(filters: GearFilters = {}) {
   return useQuery({
     queryKey: gearKeys.list(filters),
     queryFn: ({ signal }) => getGear(filters, signal),
+    placeholderData: keepPreviousData,
   });
 }
+
 
 export function useGearDetail(slug: string) {
   return useQuery({

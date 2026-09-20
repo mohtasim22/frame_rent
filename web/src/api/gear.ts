@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { gearItemSchema, type GearQuery } from "@shared/schemas/gear.schema";
+import { availabilityResponseSchema, gearItemSchema, type GearQuery } from "@shared/schemas/gear.schema";
 import { api } from "./client";
 
 export type GearFilters = Partial<GearQuery>;
@@ -13,3 +13,11 @@ export function getGear(filters: GearFilters, signal?: AbortSignal) {
 export function getGearBySlug(slug: string, signal?: AbortSignal) {
   return api.get(`/api/v1/gear/${encodeURIComponent(slug)}`, { schema: gearItemSchema, signal });
 }
+export function getAvailability(slug: string, from: string, to: string, signal?: AbortSignal) {
+  return api.get(`/api/v1/gear/${encodeURIComponent(slug)}/availability`, {
+    query: { from, to },
+    schema: availabilityResponseSchema,
+    signal,
+  });
+}
+
