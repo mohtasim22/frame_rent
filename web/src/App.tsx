@@ -7,6 +7,7 @@ import { ErrorBoundary } from "./components/states/ErrorBoundry";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { useCartCount } from "./store/cart";
 import { ShoppingCart } from "lucide-react";
+import { CartPage } from "./pages/CartPage";
 
 export default function App() {
   const health = useHealth();
@@ -37,13 +38,14 @@ export default function App() {
                   ? "API unreachable"
                   : "checking…"}
             </span>
-            <span
+            <Link
+              to="/cart"
               className="flex items-center gap-1.5 text-sm"
-              aria-label={`${cartCount} items in cart`}
+              aria-label={`Cart, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
             >
               <ShoppingCart className="size-4" aria-hidden="true" />
               {cartCount}
-            </span>
+            </Link>
           </div>
         </div>
       </header>
@@ -52,6 +54,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<GearListPage />} />
           <Route path="/gear/:slug" element={<GearDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ErrorBoundary>

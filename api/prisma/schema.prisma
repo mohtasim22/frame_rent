@@ -175,6 +175,11 @@ model BookingItem {
   gearUnitId String
   gearUnit   GearUnit @relation(fields: [gearUnitId], references: [id], onDelete: Restrict)
 
+  // This line's own rental window. The booking's dates are the envelope
+  // across all its items; availability is decided per item.
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
   // Snapshots — these must not change when the catalogue changes.
   productName    String
   dailyRateCents Int
@@ -185,8 +190,10 @@ model BookingItem {
 
   @@index([bookingId])
   @@index([gearUnitId])
+  @@index([gearUnitId, startDate, endDate])
   @@map("booking_items")
 }
+
 
 model MaintenanceHold {
   id     String @id @default(uuid())

@@ -62,7 +62,7 @@ export function AvailabilityCalendar({ item, range, onRangeChange }: Props) {
         endMonth={windowEnd}
       />
 
-      <p className="mt-3 border-t pt-3 text-sm">
+      
               {range?.from && range.to ? (
         (() => {
           const quote = quoteRental(
@@ -115,7 +115,7 @@ export function AvailabilityCalendar({ item, range, onRangeChange }: Props) {
         </p>
       )}
 
-      </p>
+      
     </div>
   );
 }

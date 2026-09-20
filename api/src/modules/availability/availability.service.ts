@@ -42,16 +42,11 @@ async function loadUnitRanges(
         prisma.bookingItem.findMany({
             where: {
                 gearUnitId: { in: unitIds },
-                booking: {
-                    status: { in: [...BLOCKING_BOOKING_STATUSES] },
-                    startDate: { lte: windowEnd },
-                    endDate: { gte: windowStart },
-                },
+                startDate: { lte: windowEnd },
+                endDate: { gte: windowStart },
+                booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
             },
-            select: {
-                gearUnitId: true,
-                booking: { select: { startDate: true, endDate: true } },
-            },
+            select: { gearUnitId: true, startDate: true, endDate: true },
         }),
         prisma.maintenanceHold.findMany({
             where: {
@@ -68,10 +63,7 @@ async function loadUnitRanges(
     for (const item of items) {
         byUnit.get(item.gearUnitId)?.push(
             padRange(
-                {
-                    start: toDateString(item.booking.startDate),
-                    end: toDateString(item.booking.endDate),
-                },
+                { start: toDateString(item.startDate), end: toDateString(item.endDate) },
                 bufferDays,
             ),
         );
@@ -96,15 +88,13 @@ export const availabilityService = {
                 gearUnitId,
                 booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
             },
-            select: {
-                booking: { select: { startDate: true, endDate: true } },
-            },
-            orderBy: { booking: { startDate: "asc" } },
+            select: { startDate: true, endDate: true },
+            orderBy: { startDate: "asc" },
         });
 
         return items.map((item) => ({
-            start: toDateString(item.booking.startDate),
-            end: toDateString(item.booking.endDate),
+            start: toDateString(item.startDate),
+            end: toDateString(item.endDate),
         }));
     },
 

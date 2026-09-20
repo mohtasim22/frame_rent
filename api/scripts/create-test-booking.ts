@@ -50,6 +50,8 @@ async function create(slug: string, start: string, end: string, unitIndex: numbe
                 create: [
                     {
                         gearUnitId: unit.id,
+                        startDate: new Date(`${start}T00:00:00Z`),
+                        endDate: new Date(`${end}T00:00:00Z`),
                         productName: product.name,
                         dailyRateCents: product.dailyRateCents,
                         days,
