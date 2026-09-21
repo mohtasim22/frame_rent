@@ -17,7 +17,8 @@
     "booking:race:http": "tsx --env-file=.env scripts/race-http.ts",
     "make:admin": "tsx --env-file=.env scripts/make-admin.ts",
     "postinstall": "prisma generate",
-    "migrate:deploy": "prisma migrate deploy"
+    "migrate:deploy": "prisma migrate deploy",
+    "stripe:e2e": "tsx --env-file=.env scripts/stripe-e2e.ts"
   },
   "engines": {
     "node": ">=22 <25"
