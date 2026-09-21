@@ -8,6 +8,8 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { useCartCount } from "./store/cart";
 import { ShoppingCart } from "lucide-react";
 import { CartPage } from "./pages/CartPage";
+import { CheckoutPage } from "./pages/CheckoutPage";
+import { BookingConfirmationPage } from "./pages/BookingConfirmationPage";
 
 export default function App() {
   const health = useHealth();
@@ -55,6 +57,11 @@ export default function App() {
           <Route path="/" element={<GearListPage />} />
           <Route path="/gear/:slug" element={<GearDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route
+            path="/booking/:reference"
+            element={<BookingConfirmationPage />}
+          />
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

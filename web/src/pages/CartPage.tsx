@@ -3,7 +3,8 @@ import { format, parseISO } from "date-fns";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { formatCents } from "@/lib/format";
@@ -182,9 +183,18 @@ export function CartPage() {
           </p>
         )}
 
-        <Button className="mt-4 w-full" disabled={!canCheckout}>
-          Continue to checkout
-        </Button>
+        {canCheckout ? (
+          <Link
+            to="/checkout"
+            className={cn(buttonVariants(), "mt-4 w-full")}
+          >
+            Continue to checkout
+          </Link>
+        ) : (
+          <Button className="mt-4 w-full" disabled>
+            Continue to checkout
+          </Button>
+        )}
 
         <p
           className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground"
