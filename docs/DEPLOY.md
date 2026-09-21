@@ -172,6 +172,46 @@ production config locally.
 
 ---
 
+---
+
+## Payments (optional)
+
+Stripe is optional everywhere. With no `STRIPE_SECRET_KEY` the API boots and
+behaves exactly as it did before payments existed, so you can deploy this
+without touching Stripe at all.
+
+To turn it on, add to **Render**:
+
+```
+STRIPE_SECRET_KEY      sk_test_...
+STRIPE_WEBHOOK_SECRET  whsec_...
+```
+
+and to **Vercel** (then redeploy — Vite inlines it at build time):
+
+```
+VITE_STRIPE_PUBLISHABLE_KEY  pk_test_...
+```
+
+The webhook endpoint is `POST /api/v1/stripe/webhook`. Register it in the
+Stripe dashboard for `payment_intent.succeeded`,
+`payment_intent.payment_failed` and `charge.refunded`. Locally, run:
+
+```bash
+stripe listen --forward-to localhost:4000/api/v1/stripe/webhook
+```
+
+which prints the `whsec_...` to use in development.
+
+### Why the webhook, and not the browser
+
+The browser's "payment succeeded" is a hint — the tab can close, the network
+can drop, and the URL can be faked. The webhook is signed with a shared secret
+and retried until the API answers 2xx, so booking confirmation hangs off that
+instead. It is mounted with `express.raw()` **before** `express.json()`,
+because Stripe signs the exact bytes it sent and a reserialised body never
+verifies.
+
 ## If it breaks
 
 **Sign-in works, then everything is 401.** `WEB_ORIGIN` does not exactly match

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   bookingResponseSchema,
   bookingSummarySchema,
+  paymentIntentSchema,
   quoteResponseSchema,
 } from "@shared/schemas/booking.schema";
 import type { CreateBooking, QuoteRequest } from "@shared/schemas/booking.schema";
@@ -40,5 +41,13 @@ export function cancelBooking(reference: string) {
     `/api/v1/bookings/${encodeURIComponent(reference)}/cancel`,
     undefined,
     { schema: bookingResponseSchema },
+  );
+}
+
+export function createPaymentIntent(reference: string) {
+  return api.post(
+    `/api/v1/payments/bookings/${encodeURIComponent(reference)}/intent`,
+    undefined,
+    { schema: paymentIntentSchema },
   );
 }

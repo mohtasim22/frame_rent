@@ -12,7 +12,11 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { formatCents } from "@/lib/format";
 import { summariseCart } from "@/lib/cart";
 import { useQuote } from "@/hooks/useQuote";
-import { useCreateBooking } from "@/hooks/useBooking";
+import { useCreateBooking, useCreatePaymentIntent } from "@/hooks/useBooking";
+import {
+  PaymentStep,
+  paymentsConfigured,
+} from "@/components/checkout/PaymentStep";
 import { useCartStore } from "@/store/cart";
 import { useSession } from "@/lib/auth-client";
 
@@ -20,7 +24,10 @@ const checkoutSchema = z.object({
   phone: z
     .string()
     .max(30)
-    .refine((value) => value === "" || value.length >= 5, "Too short to be a phone number"),
+    .refine(
+      (value) => value === "" || value.length >= 5,
+      "Too short to be a phone number",
+    ),
   pickupMethod: z.enum(PICKUP_METHODS),
   notes: z.string().max(500),
 });
@@ -40,6 +47,7 @@ export function CheckoutPage() {
   const summary = summariseCart(lines, format(new Date(), "yyyy-MM-dd"));
   const quote = useQuote(lines, { enabled: !summary.hasExpired });
   const booking = useCreateBooking();
+  const intent = useCreatePaymentIntent();
 
   const form = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
@@ -50,13 +58,23 @@ export function CheckoutPage() {
     },
   });
 
-  // The cart is emptied only after we have somewhere to send them.
+  const reference = booking.data?.data.reference;
+
   useEffect(() => {
-    if (booking.isSuccess) {
-      clear();
-      navigate(`/booking/${booking.data.data.reference}`, { replace: true });
+    if (!booking.isSuccess || !reference) return;
+
+    // The cart has become a booking, so it has done its job either way.
+    clear();
+
+    if (!paymentsConfigured) {
+      navigate(`/booking/${reference}`, { replace: true });
+      return;
     }
-  }, [booking.isSuccess, booking.data, clear, navigate]);
+
+    // Ask for the PaymentIntent once. `idle` is the guard: a mutation that has
+    // already fired must not fire again when this effect re-runs.
+    if (intent.isIdle) intent.mutate(reference);
+  }, [booking.isSuccess, reference, clear, navigate, intent]);
 
   if (lines.length === 0 && !booking.isSuccess) {
     return (
@@ -80,6 +98,8 @@ export function CheckoutPage() {
 
   const conflict =
     booking.error instanceof ApiError && booking.error.status === 409;
+
+  const clientSecret = intent.data?.data.clientSecret ?? null;
 
   function onSubmit(values: CheckoutForm) {
     booking.mutate({
@@ -108,7 +128,10 @@ export function CheckoutPage() {
 
         <ul className="mt-3 divide-y">
           {summary.items.map(({ line, quote: localQuote }) => (
-            <li key={line.id} className="flex justify-between gap-4 py-2 text-sm">
+            <li
+              key={line.id}
+              className="flex justify-between gap-4 py-2 text-sm"
+            >
               <span>
                 {line.name}
                 <span className="text-muted-foreground">
@@ -117,7 +140,9 @@ export function CheckoutPage() {
                   {format(parseISO(line.end), "d MMM yyyy")}
                 </span>
               </span>
-              <span className="shrink-0">{formatCents(localQuote.subtotalCents)}</span>
+              <span className="shrink-0">
+                {formatCents(localQuote.subtotalCents)}
+              </span>
             </li>
           ))}
         </ul>
@@ -128,98 +153,171 @@ export function CheckoutPage() {
             <dd>{formatCents(totals.subtotalCents)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">Refundable deposits</dt>
+            <dt className="text-muted-foreground">Deposits (held at pickup)</dt>
             <dd>{formatCents(totals.depositCents)}</dd>
           </div>
           <div className="flex justify-between border-t pt-2 font-medium">
-            <dt>Total due at pickup</dt>
-            <dd>{formatCents(totals.totalCents)}</dd>
+            <dt>Paying now</dt>
+            <dd>{formatCents(totals.subtotalCents)}</dd>
           </div>
         </dl>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
-        <div className="rounded-xl border p-4 text-sm">
-          <p className="text-muted-foreground">Booking as</p>
-          <p className="mt-1 font-medium">{session?.user.name}</p>
-          <p className="text-muted-foreground">{session?.user.email}</p>
-        </div>
+      {/* Once the booking exists the details form is done — the only thing
+          left is paying for it, so it is replaced rather than stacked. */}
+      {booking.isSuccess && paymentsConfigured ? (
+        <div className="mt-6 rounded-xl border p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Payment
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Booking{" "}
+            <span className="font-mono text-foreground">{reference}</span> is
+            held for you for 30 minutes.
+          </p>
 
-        <div>
-          <label className={labelClass} htmlFor="phone">
-            Phone <span className="font-normal text-muted-foreground">(optional)</span>
-          </label>
-          <Input
-            id="phone"
-            type="tel"
-            className={fieldClass}
-            autoComplete="tel"
-            aria-invalid={form.formState.errors.phone ? true : undefined}
-            {...form.register("phone")}
-          />
-          {form.formState.errors.phone && (
-            <p className={errorClass}>{form.formState.errors.phone.message}</p>
-          )}
-        </div>
+          <div className="mt-4">
+            {intent.isPending && (
+              <p className="text-sm text-muted-foreground">
+                Preparing a secure payment form…
+              </p>
+            )}
 
-        <fieldset>
-          <legend className={labelClass}>Pickup</legend>
-          <div className="mt-2 flex gap-4">
-            {PICKUP_METHODS.map((method) => (
-              <label key={method} className="flex items-center gap-2 text-sm">
-                <input type="radio" value={method} {...form.register("pickupMethod")} />
-                {method === "COUNTER" ? "Collect from the counter" : "Courier delivery"}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+            {intent.isError && (
+              <p className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
+                {intent.error.message}
+              </p>
+            )}
 
-        <div>
-          <label className={labelClass} htmlFor="notes">
-            Anything we should know?{" "}
-            <span className="font-normal text-muted-foreground">(optional)</span>
-          </label>
-          <textarea
-            id="notes"
-            rows={3}
-            className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            {...form.register("notes")}
-          />
-        </div>
-
-        {booking.isError && (
-          <div className="rounded-xl border border-destructive/40 p-4 text-sm">
-            <p className="font-medium text-destructive">
-              {conflict ? "Someone booked it first" : "We could not place that booking"}
-            </p>
-            <p className="mt-1 text-muted-foreground">{booking.error.message}</p>
-            {conflict && (
-              <Link
-                to="/cart"
-                className="mt-2 inline-block underline underline-offset-4"
-              >
-                Go back and pick different dates
-              </Link>
+            {clientSecret && reference && (
+              <PaymentStep
+                clientSecret={clientSecret}
+                amountCents={
+                  intent.data?.data.amountCents ?? totals.subtotalCents
+                }
+                reference={reference}
+              />
             )}
           </div>
-        )}
 
-        <Button type="submit" className="w-full" disabled={blocked || booking.isPending}>
-          {booking.isPending
-            ? "Placing your booking…"
-            : `Confirm booking · ${formatCents(totals.totalCents)}`}
-        </Button>
+          <p className="mt-4 text-xs text-muted-foreground">
+            You are paying the rental now. The{" "}
+            {formatCents(totals.depositCents)} deposit is authorised on your
+            card when you collect the gear, and released when you return it.
+          </p>
+        </div>
+      ) : (
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="mt-6 space-y-4"
+          noValidate
+        >
+          <div className="rounded-xl border p-4 text-sm">
+            <p className="text-muted-foreground">Booking as</p>
+            <p className="mt-1 font-medium">{session?.user.name}</p>
+            <p className="text-muted-foreground">{session?.user.email}</p>
+          </div>
 
-        <p className="text-center text-xs text-muted-foreground" aria-live="polite">
-          {summary.hasExpired
-            ? "Some dates in your cart have passed. Fix them in the cart first."
-            : quote.isFetching
-              ? "Confirming prices and availability…"
-              : quote.isSuccess && !quote.data.allAvailable
-                ? "Something in your cart is no longer available."
-                : "You pay at pickup. The deposit is refunded on return."}
-        </p>
-      </form>
+          <div>
+            <label className={labelClass} htmlFor="phone">
+              Phone{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </label>
+            <Input
+              id="phone"
+              type="tel"
+              className={fieldClass}
+              autoComplete="tel"
+              aria-invalid={form.formState.errors.phone ? true : undefined}
+              {...form.register("phone")}
+            />
+            {form.formState.errors.phone && (
+              <p className={errorClass}>
+                {form.formState.errors.phone.message}
+              </p>
+            )}
+          </div>
+
+          <fieldset>
+            <legend className={labelClass}>Pickup</legend>
+            <div className="mt-2 flex gap-4">
+              {PICKUP_METHODS.map((method) => (
+                <label key={method} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    value={method}
+                    {...form.register("pickupMethod")}
+                  />
+                  {method === "COUNTER"
+                    ? "Collect from the counter"
+                    : "Courier delivery"}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div>
+            <label className={labelClass} htmlFor="notes">
+              Anything we should know?{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </label>
+            <textarea
+              id="notes"
+              rows={3}
+              className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              {...form.register("notes")}
+            />
+          </div>
+
+          {booking.isError && (
+            <div className="rounded-xl border border-destructive/40 p-4 text-sm">
+              <p className="font-medium text-destructive">
+                {conflict
+                  ? "Someone booked it first"
+                  : "We could not place that booking"}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {booking.error.message}
+              </p>
+              {conflict && (
+                <Link
+                  to="/cart"
+                  className="mt-2 inline-block underline underline-offset-4"
+                >
+                  Go back and pick different dates
+                </Link>
+              )}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={blocked || booking.isPending}
+          >
+            {booking.isPending
+              ? "Placing your booking…"
+              : `Continue to payment · ${formatCents(totals.subtotalCents)}`}
+          </Button>
+
+          <p
+            className="text-center text-xs text-muted-foreground"
+            aria-live="polite"
+          >
+            {summary.hasExpired
+              ? "Some dates in your cart have passed. Fix them in the cart first."
+              : quote.isFetching
+                ? "Confirming prices and availability…"
+                : quote.isSuccess && !quote.data.allAvailable
+                  ? "Something in your cart is no longer available."
+                  : "You pay the rental now. Deposits are authorised at pickup and released when the gear comes back."}
+          </p>
+        </form>
+      )}
     </section>
   );
 }

@@ -37,7 +37,7 @@ const STEPS = [
   {
     icon: Truck,
     title: "Collect and shoot",
-    body: "Pay at pickup, bring photo ID. Your deposit comes back when the gear does.",
+    body: "Bring photo ID. We hold the deposit on your card at the counter and release it when the gear comes back.",
   },
 ];
 
@@ -99,7 +99,7 @@ export function HomePage() {
               [featured.data?.meta?.total?.toString() ?? "—", "products"],
               ["Per unit", "availability"],
               ["1 day", "turnaround"],
-              ["€0", "until pickup"],
+              ["Card", "at booking"],
             ].map(([value, label]) => (
               <div key={label}>
                 <dt className="text-2xl font-semibold tracking-tight">
@@ -208,7 +208,7 @@ export function HomePage() {
         </h2>
         <p className="mx-auto mt-3 max-w-md text-muted-foreground">
           Check what&rsquo;s free on your dates. It takes about thirty seconds
-          and costs nothing until you collect.
+          and you only pay for the days you book.
         </p>
         <Link
           to="/gear"

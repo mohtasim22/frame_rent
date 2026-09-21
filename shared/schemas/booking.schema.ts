@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { rentalDays } from "../lib/pricing";
-import { BOOKING_STATUSES } from "../types/domain";
+import {
+  BOOKING_STATUSES,
+  DEPOSIT_STATUSES,
+  PAYMENT_STATUSES,
+} from "../types/domain";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RENTAL_DAYS = 90;
@@ -101,6 +105,8 @@ export const bookingResponseSchema = z.object({
   totalCents: z.number().int(),
   customerName: z.string(),
   pickupMethod: z.enum(PICKUP_METHODS).nullable(),
+  paymentStatus: z.enum(PAYMENT_STATUSES),
+  depositStatus: z.enum(DEPOSIT_STATUSES),
   items: z.array(bookingItemResultSchema),
 });
 
@@ -109,6 +115,11 @@ export const myBookingsQuerySchema = z.object({
 });
 
 export type MyBookingsQuery = z.infer<typeof myBookingsQuerySchema>;
+
+export const paymentIntentSchema = z.object({
+  clientSecret: z.string().nullable(),
+  amountCents: z.number().int(),
+});
 
 export const bookingSummarySchema = z.object({
   id: z.string(),

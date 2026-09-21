@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelBooking,
   createBooking,
+  createPaymentIntent,
   getBooking,
   getMyBookings,
 } from "@/api/booking";
@@ -50,5 +51,17 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["availability"] });
       queryClient.setQueryData(["booking", result.data.reference], result);
     },
+  });
+}
+
+/**
+ * Asks the server for the PaymentIntent belonging to a booking. The amount is
+ * decided there and merely reported here — the browser never says what it
+ * intends to pay.
+ */
+export function useCreatePaymentIntent() {
+  return useMutation({
+    mutationFn: createPaymentIntent,
+    retry: false,
   });
 }

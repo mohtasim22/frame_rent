@@ -66,7 +66,11 @@ export function BookingConfirmationPage() {
           <p className="text-sm text-muted-foreground">
             {data.status === "CANCELLED"
               ? "Nothing is held for you any more."
-              : "We've held this gear for you. Nothing to pay until pickup."}
+              : data.paymentStatus === "PAID"
+                ? "Paid and confirmed. We've held this gear for you."
+                : data.paymentStatus === "PROCESSING"
+                  ? "We're confirming your payment — this page updates itself."
+                  : "We've held this gear for you."}
           </p>
         </div>
       </div>
@@ -127,7 +131,7 @@ export function BookingConfirmationPage() {
           <dd>{formatCents(data.subtotalCents)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-muted-foreground">Refundable deposit</dt>
+          <dt className="text-muted-foreground">Deposit (held at pickup)</dt>
           <dd>{formatCents(data.depositCents)}</dd>
         </div>
         {data.feeCents > 0 && (
@@ -137,14 +141,20 @@ export function BookingConfirmationPage() {
           </div>
         )}
         <div className="flex justify-between border-t pt-2 text-base font-medium">
-          <dt>Due at pickup</dt>
+          <dt>Rental total</dt>
           <dd>{formatCents(data.totalCents)}</dd>
         </div>
       </dl>
 
       <p className="mt-4 text-sm text-muted-foreground">
-        Bring photo ID. The deposit of {formatCents(data.depositCents)} is refunded
-        when the gear comes back in the condition it left in.
+        Bring photo ID.{" "}
+        {data.depositStatus === "HELD"
+          ? `${formatCents(data.depositCents)} is currently held on your card and is released when the gear comes back.`
+          : data.depositStatus === "RELEASED"
+            ? "Your deposit has been released."
+            : data.depositStatus === "CAPTURED"
+              ? `${formatCents(data.feeCents)} was taken from your deposit for the late return; the rest was released.`
+              : `We hold ${formatCents(data.depositCents)} on your card when you collect, and release it when the gear comes back in the condition it left in.`}
       </p>
 
       {data.status === "PENDING" && (

@@ -98,12 +98,12 @@ export function AvailabilityCalendar({ item, range, onRangeChange }: Props) {
               </div>
 
               <div className="flex justify-between text-muted-foreground">
-                <span>Refundable deposit</span>
+                <span>Deposit (held at pickup)</span>
                 <span>{formatCents(quote.depositCents)}</span>
               </div>
 
               <div className="flex justify-between border-t pt-1 font-medium text-foreground">
-                <span>Total due at pickup</span>
+                <span>Rental total</span>
                 <span>{formatCents(quote.totalCents)}</span>
               </div>
             </div>

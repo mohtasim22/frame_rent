@@ -29,3 +29,21 @@ export type UnitCondition = (typeof UNIT_CONDITIONS)[number];
 
 export const ROLES = ["RENTER", "ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
+
+export const PAYMENT_STATUSES = [
+  "UNPAID",
+  "PROCESSING",
+  "PAID",
+  "REFUNDED",
+  "FAILED",
+] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export const DEPOSIT_STATUSES = [
+  "NONE",
+  "HELD",
+  "CAPTURED",
+  "RELEASED",
+  "FAILED",
+] as const;
+export type DepositStatus = (typeof DEPOSIT_STATUSES)[number];

@@ -168,12 +168,12 @@ export function CartPage() {
             <dd>{formatCents(totals.subtotalCents)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">Refundable deposits</dt>
+            <dt className="text-muted-foreground">Deposits (held at pickup)</dt>
             <dd>{formatCents(totals.depositCents)}</dd>
           </div>
           <div className="flex justify-between border-t pt-2 text-base font-medium">
-            <dt>Total due at pickup</dt>
-            <dd>{formatCents(totals.totalCents)}</dd>
+            <dt>You pay at checkout</dt>
+            <dd>{formatCents(totals.subtotalCents)}</dd>
           </div>
         </dl>
 
@@ -210,7 +210,7 @@ export function CartPage() {
           ) : quote.isSuccess && !quote.data.allAvailable ? (
             "Remove or re-date the unavailable lines to continue."
           ) : (
-            "Nothing is reserved until you book."
+            "Nothing is reserved until you book. You pay the rental at checkout."
           )}
         </p>
       </div>

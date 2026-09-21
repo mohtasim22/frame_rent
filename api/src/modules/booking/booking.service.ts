@@ -351,6 +351,8 @@ export const bookingService = {
       feeCents: booking.feeCents,
       totalCents: booking.totalCents,
       customerName: booking.user.name,
+      paymentStatus: booking.paymentStatus,
+      depositStatus: booking.depositStatus,
       pickupMethod: asPickupMethod(booking.pickupMethod),
       items: booking.items.map((item) => ({
         productName: item.productName,
@@ -479,6 +481,8 @@ async function writeBooking(
     feeCents: booking.feeCents,
     totalCents: booking.totalCents,
     customerName: user.name,
+    paymentStatus: booking.paymentStatus,
+    depositStatus: booking.depositStatus,
     pickupMethod: input.pickupMethod ?? null,
     // Built from `allocations`, not from `booking.items` — a nested create
     // gives no ordering guarantee on the rows it returns.
