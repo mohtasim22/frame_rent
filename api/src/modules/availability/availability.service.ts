@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { BLOCKING_BOOKING_STATUSES } from "@shared/types/domain";
+import { blockingBookingWhere } from "./blocking";
 import type { DateRange } from "./overlap";
 import { findFreeUnitId, unavailableDays } from "./availability";
 import { addDays, eachDay, padRange } from "./dates";
@@ -55,7 +55,7 @@ async function loadUnitRanges(
                 gearUnitId: { in: unitIds },
                 startDate: { lte: windowEnd },
                 endDate: { gte: windowStart },
-                booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
+                booking: blockingBookingWhere(),
             },
             select: { gearUnitId: true, startDate: true, endDate: true },
         }),
@@ -97,7 +97,7 @@ export const availabilityService = {
         const items = await prisma.bookingItem.findMany({
             where: {
                 gearUnitId,
-                booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
+                booking: blockingBookingWhere(),
             },
             select: { startDate: true, endDate: true },
             orderBy: { startDate: "asc" },

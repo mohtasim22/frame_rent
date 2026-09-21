@@ -10,7 +10,8 @@ import {
   lateFeeCents,
   nextStatuses,
 } from "@shared/lib/lifecycle";
-import { BLOCKING_BOOKING_STATUSES } from "@shared/types/domain";
+import { blockingBookingWhere } from "../availability/blocking";
+import { paymentService } from "../payment/payment.service";
 import type { BookingStatus } from "@shared/types/domain";
 import type {
   AdminBookingQuery,
@@ -134,6 +135,12 @@ export const adminService = {
       select: ROW_SELECT,
     });
 
+    // Handing the gear over is when the deposit hold starts, not checkout —
+    // a card authorisation only lives about seven days.
+    if (to === "PICKED_UP" && paymentService.enabled) {
+      await paymentService.holdDeposit(booking.id);
+    }
+
     return toRow(updated);
   },
 
@@ -208,6 +215,14 @@ export const adminService = {
         select: ROW_SELECT,
       });
     });
+
+    // Capture the late fee out of the hold, or release it. Deliberately after
+    // the transaction commits: a Stripe call inside a database transaction
+    // holds locks across a network round trip, and cannot be rolled back
+    // anyway once the money has moved.
+    if (paymentService.enabled) {
+      await paymentService.settleDeposit(booking.id, feeCents);
+    }
 
     return toRow(updated);
   },
@@ -314,7 +329,7 @@ export const adminService = {
         where: {
           gearUnitId: id,
           endDate: { gte: toDate(today()) },
-          booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
+          booking: blockingBookingWhere(),
         },
       });
 
@@ -353,7 +368,7 @@ export const adminService = {
         gearUnitId: unit.id,
         startDate: { lte: toDate(input.end) },
         endDate: { gte: toDate(input.start) },
-        booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
+        booking: blockingBookingWhere(),
       },
       select: { booking: { select: { reference: true } } },
     });
@@ -471,7 +486,7 @@ export const adminService = {
           gearUnitId: { in: unitIds },
           startDate: { lte: toDate(addDays(to, widest)) },
           endDate: { gte: toDate(addDays(from, -widest)) },
-          booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] } },
+          booking: blockingBookingWhere(),
         },
         select: { gearUnitId: true, startDate: true, endDate: true },
       }),

@@ -24,6 +24,22 @@ enum BookingStatus {
   OVERDUE
 }
 
+enum PaymentStatus {
+  UNPAID
+  PROCESSING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum DepositStatus {
+  NONE
+  HELD
+  CAPTURED
+  RELEASED
+  FAILED
+}
+
 enum UnitStatus {
   AVAILABLE
   MAINTENANCE
@@ -45,6 +61,8 @@ model User {
   image         String?
   role          Role     @default(RENTER)
   phone         String?
+
+  stripeCustomerId String? @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -155,6 +173,22 @@ model Booking {
   pickupMethod String?
   notes        String?
 
+  // Payment for the rental itself, taken at checkout.
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentIntentId String?       @unique
+  paymentMethodId String?
+
+  // The security deposit is a separate authorisation placed at hand-over, not
+  // at checkout: an online card hold is only valid for about 7 days, and a
+  // rental can run for 90.
+  depositStatus   DepositStatus @default(NONE)
+  depositIntentId String?       @unique
+
+  // While a booking is PENDING and unpaid it still holds its units, but only
+  // until this moment — otherwise an abandoned checkout blocks a camera
+  // forever. Cleared once payment succeeds.
+  paymentDueBy DateTime?
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
@@ -167,6 +201,7 @@ model Booking {
   @@index([userId])
   @@index([status])
   @@index([startDate, endDate])
+  @@index([status, paymentDueBy])
   @@map("bookings")
 }
 

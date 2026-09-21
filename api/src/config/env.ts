@@ -33,6 +33,13 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z
     .string()
     .min(32, "too short — generate one with crypto.randomBytes(32)"),
+
+  /**
+   * Payments are optional. Leave these unset and the app behaves as it did
+   * before Stripe existed — bookings are created and settled at pickup.
+   */
+  STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

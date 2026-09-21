@@ -5,6 +5,7 @@ import { categoryRoutes } from "./modules/category/category.routes";
 import { bookingRoutes } from "./modules/booking/booking.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 import { reviewRoutes } from "./modules/review/review.routes";
+import { paymentRoutes } from "./modules/payment/payment.routes";
 
 
 export const apiRoutes = Router();
@@ -15,3 +16,4 @@ apiRoutes.use("/categories", categoryRoutes);
 apiRoutes.use("/bookings", bookingRoutes);
 apiRoutes.use("/admin", adminRoutes);
 apiRoutes.use("/reviews", reviewRoutes);
+apiRoutes.use("/payments", paymentRoutes);

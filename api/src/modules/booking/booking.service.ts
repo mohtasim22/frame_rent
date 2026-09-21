@@ -21,6 +21,8 @@ import {
   toDateString,
 } from "../availability/availability.service";
 import type { AuthUser } from "../../middleware/auth";
+import { checkoutDeadline } from "../availability/blocking";
+import { paymentsEnabled } from "../../lib/stripe";
 
 type LineInput = QuoteRequest["lines"][number];
 
@@ -436,6 +438,10 @@ async function writeBooking(
       pickupMethod: input.pickupMethod,
       notes: input.notes,
       userId: user.id,
+      // With payments on, the booking holds its units only while the customer
+      // is paying. Without Stripe configured nothing expires and the booking
+      // behaves exactly as it did before.
+      paymentDueBy: paymentsEnabled ? checkoutDeadline() : null,
       items: {
         create: allocations.map((a) => ({
           gearUnitId: a.unitId,

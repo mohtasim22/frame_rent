@@ -7,6 +7,7 @@ import { apiRoutes } from "./routes";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 import { attachUser } from "./middleware/auth";
+import { stripeWebhook } from "./modules/payment/webhook";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/error";
 
@@ -24,6 +25,15 @@ app.use(
 // itself; a body parser that has already drained it leaves nothing to read.
 // `*splat` is Express 5 syntax — a bare `*` no longer parses.
 app.all("/api/auth/*splat", toNodeHandler(auth));
+
+// Also BEFORE express.json(), and for the same reason as the auth handler:
+// Stripe signs the exact bytes it sent. A parsed-and-re-serialised body has
+// different bytes, so the signature never verifies.
+app.post(
+  "/api/v1/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook,
+);
 
 app.use(express.json());
 
