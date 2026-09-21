@@ -39,6 +39,21 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
   },
+
+  advanced: {
+    /**
+     * In dev the API and the client are both on `localhost`, so they are
+     * cross-ORIGIN but same-SITE and a Lax cookie rides along fine.
+     *
+     * In production they are api.framerent.x and framerent.x — genuinely
+     * cross-site — and a Lax cookie is simply not sent. SameSite=None is the
+     * only value a browser will attach cross-site, and it demands Secure.
+     */
+    defaultCookieAttributes:
+      env.NODE_ENV === "production"
+        ? { sameSite: "none", secure: true, httpOnly: true }
+        : { sameSite: "lax", secure: false, httpOnly: true },
+  },
 });
 
 export type AuthSession = typeof auth.$Infer.Session;

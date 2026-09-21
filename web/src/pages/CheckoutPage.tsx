@@ -14,10 +14,9 @@ import { summariseCart } from "@/lib/cart";
 import { useQuote } from "@/hooks/useQuote";
 import { useCreateBooking } from "@/hooks/useBooking";
 import { useCartStore } from "@/store/cart";
+import { useSession } from "@/lib/auth-client";
 
 const checkoutSchema = z.object({
-  name: z.string().min(1, "Please tell us your name").max(120),
-  email: z.email("That does not look like an email address"),
   phone: z
     .string()
     .max(30)
@@ -34,6 +33,7 @@ const errorClass = "mt-1 text-sm text-destructive";
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const { data: session } = useSession();
   const lines = useCartStore((state) => state.lines);
   const clear = useCartStore((state) => state.clear);
 
@@ -44,8 +44,6 @@ export function CheckoutPage() {
   const form = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      name: "",
-      email: "",
       phone: "",
       pickupMethod: "COUNTER",
       notes: "",
@@ -86,11 +84,7 @@ export function CheckoutPage() {
   function onSubmit(values: CheckoutForm) {
     booking.mutate({
       lines: lines.map(({ slug, start, end }) => ({ slug, start, end })),
-      customer: {
-        name: values.name,
-        email: values.email,
-        phone: values.phone === "" ? undefined : values.phone,
-      },
+      phone: values.phone === "" ? undefined : values.phone,
       pickupMethod: values.pickupMethod,
       notes: values.notes === "" ? undefined : values.notes,
     });
@@ -145,40 +139,10 @@ export function CheckoutPage() {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
-        <div>
-          <label className={labelClass} htmlFor="name">
-            Full name
-          </label>
-          <Input
-            id="name"
-            className={fieldClass}
-            autoComplete="name"
-            aria-invalid={form.formState.errors.name ? true : undefined}
-            {...form.register("name")}
-          />
-          {form.formState.errors.name && (
-            <p className={errorClass}>{form.formState.errors.name.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label className={labelClass} htmlFor="email">
-            Email
-          </label>
-          <Input
-            id="email"
-            type="email"
-            className={fieldClass}
-            autoComplete="email"
-            aria-invalid={form.formState.errors.email ? true : undefined}
-            {...form.register("email")}
-          />
-          {form.formState.errors.email && (
-            <p className={errorClass}>{form.formState.errors.email.message}</p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Your booking reference goes here.
-          </p>
+        <div className="rounded-xl border p-4 text-sm">
+          <p className="text-muted-foreground">Booking as</p>
+          <p className="mt-1 font-medium">{session?.user.name}</p>
+          <p className="text-muted-foreground">{session?.user.email}</p>
         </div>
 
         <div>

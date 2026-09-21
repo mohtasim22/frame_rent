@@ -1,6 +1,9 @@
 import { Link, useParams } from "react-router";
 import { format, parseISO } from "date-fns";
 import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { statusLabel, statusTone } from "@/lib/status";
+import { useCancelBooking } from "@/hooks/useBooking";
 import { ApiError } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +15,7 @@ import { useBookingByReference } from "@/hooks/useBooking";
 export function BookingConfirmationPage() {
   const { reference } = useParams<{ reference: string }>();
   const booking = useBookingByReference(reference ?? "");
+  const cancel = useCancelBooking();
 
   if (booking.isPending) {
     return (
@@ -49,13 +53,20 @@ export function BookingConfirmationPage() {
   return (
     <section className="mx-auto w-full max-w-2xl px-6 py-10">
       <div className="flex items-center gap-3">
-        <CheckCircle2 className="size-8 text-emerald-600" aria-hidden="true" />
+        <CheckCircle2
+          className={`size-8 ${data.status === "CANCELLED" ? "text-muted-foreground" : "text-emerald-600"}`}
+          aria-hidden="true"
+        />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            You&rsquo;re booked, {data.customerName.split(" ")[0]}
+            {data.status === "CANCELLED"
+              ? "Booking cancelled"
+              : `You're booked, ${data.customerName.split(" ")[0]}`}
           </h1>
           <p className="text-sm text-muted-foreground">
-            We&rsquo;ve held this gear for you. Nothing to pay until pickup.
+            {data.status === "CANCELLED"
+              ? "Nothing is held for you any more."
+              : "We've held this gear for you. Nothing to pay until pickup."}
           </p>
         </div>
       </div>
@@ -68,7 +79,7 @@ export function BookingConfirmationPage() {
             </p>
             <p className="font-mono text-lg font-semibold">{data.reference}</p>
           </div>
-          <Badge variant="secondary">{data.status}</Badge>
+          <Badge variant={statusTone(data.status)}>{statusLabel(data.status)}</Badge>
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
@@ -136,12 +147,42 @@ export function BookingConfirmationPage() {
         when the gear comes back in the condition it left in.
       </p>
 
-      <Link
-        to="/"
-        className="mt-6 inline-block text-sm underline underline-offset-4"
-      >
-        Rent something else
-      </Link>
+      {data.status === "PENDING" && (
+        <div className="mt-6 rounded-xl border p-4">
+          <p className="text-sm font-medium">Changed your mind?</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You can cancel free of charge up to 48 hours before pickup.
+          </p>
+
+          {cancel.isError && (
+            <p className="mt-2 text-sm text-destructive">{cancel.error.message}</p>
+          )}
+
+          <Button
+            variant="outline"
+            className="mt-3"
+            disabled={cancel.isPending}
+            onClick={() => cancel.mutate(data.reference)}
+          >
+            {cancel.isPending ? "Cancelling…" : "Cancel this booking"}
+          </Button>
+        </div>
+      )}
+
+      {data.status === "CANCELLED" && (
+        <p className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
+          This booking was cancelled. The gear is back in the catalogue.
+        </p>
+      )}
+
+      <div className="mt-6 flex gap-4 text-sm">
+        <Link to="/rentals" className="underline underline-offset-4">
+          All my rentals
+        </Link>
+        <Link to="/" className="underline underline-offset-4">
+          Rent something else
+        </Link>
+      </div>
     </section>
   );
 }

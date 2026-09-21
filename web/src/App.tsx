@@ -1,66 +1,53 @@
-import { cn } from "@/lib/utils";
-import { useHealth } from "@/hooks/useHealth";
+import { Route, Routes } from "react-router";
+import { Header } from "@/components/layout/Header";
+import { RequireAuth } from "@/components/auth/RequireAuth";
+import { ErrorBoundary } from "@/components/states/ErrorBoundry";
 import { GearListPage } from "@/pages/GearListPage";
-import { Link, Route, Routes } from "react-router";
 import { GearDetailPage } from "@/pages/GearDetailPage";
-import { ErrorBoundary } from "./components/states/ErrorBoundry";
-import { NotFoundPage } from "./pages/NotFoundPage";
-import { useCartCount } from "./store/cart";
-import { ShoppingCart } from "lucide-react";
-import { CartPage } from "./pages/CartPage";
-import { CheckoutPage } from "./pages/CheckoutPage";
-import { BookingConfirmationPage } from "./pages/BookingConfirmationPage";
+import { CartPage } from "@/pages/CartPage";
+import { CheckoutPage } from "@/pages/CheckoutPage";
+import { BookingConfirmationPage } from "@/pages/BookingConfirmationPage";
+import { MyRentalsPage } from "@/pages/MyRentalsPage";
+import { SignInPage } from "@/pages/SignInPage";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
-  const health = useHealth();
-  const cartCount = useCartCount();
-
   return (
     <div className="min-h-screen">
-      <header className="border-b">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
-          <Link to="/" className="font-semibold tracking-tight">
-            FrameRent
-          </Link>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span
-                className={cn(
-                  "size-2 rounded-full",
-                  health.isSuccess
-                    ? "bg-emerald-500"
-                    : health.isError
-                      ? "bg-destructive"
-                      : "bg-muted-foreground/40",
-                )}
-              />
-              {health.isSuccess
-                ? `API up ${Math.round(health.data.uptime)}s`
-                : health.isError
-                  ? "API unreachable"
-                  : "checking…"}
-            </span>
-            <Link
-              to="/cart"
-              className="flex items-center gap-1.5 text-sm"
-              aria-label={`Cart, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
-            >
-              <ShoppingCart className="size-4" aria-hidden="true" />
-              {cartCount}
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<GearListPage />} />
           <Route path="/gear/:slug" element={<GearDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
+
+          <Route path="/sign-in" element={<SignInPage mode="sign-in" />} />
+          <Route path="/sign-up" element={<SignInPage mode="sign-up" />} />
+
+          <Route
+            path="/checkout"
+            element={
+              <RequireAuth>
+                <CheckoutPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rentals"
+            element={
+              <RequireAuth>
+                <MyRentalsPage />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/booking/:reference"
-            element={<BookingConfirmationPage />}
+            element={
+              <RequireAuth>
+                <BookingConfirmationPage />
+              </RequireAuth>
+            }
           />
 
           <Route path="*" element={<NotFoundPage />} />

@@ -1,5 +1,7 @@
+import { z } from "zod";
 import {
   bookingResponseSchema,
+  bookingSummarySchema,
   quoteResponseSchema,
 } from "@shared/schemas/booking.schema";
 import type { CreateBooking, QuoteRequest } from "@shared/schemas/booking.schema";
@@ -21,4 +23,22 @@ export function getBooking(reference: string, signal?: AbortSignal) {
     schema: bookingResponseSchema,
     signal,
   });
+}
+
+const bookingListSchema = z.array(bookingSummarySchema);
+
+export function getMyBookings(scope: "upcoming" | "past" | "all", signal?: AbortSignal) {
+  return api.get("/api/v1/bookings/mine", {
+    query: { scope },
+    schema: bookingListSchema,
+    signal,
+  });
+}
+
+export function cancelBooking(reference: string) {
+  return api.post(
+    `/api/v1/bookings/${encodeURIComponent(reference)}/cancel`,
+    undefined,
+    { schema: bookingResponseSchema },
+  );
 }
