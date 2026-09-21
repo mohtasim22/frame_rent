@@ -10,6 +10,11 @@ import { BookingConfirmationPage } from "@/pages/BookingConfirmationPage";
 import { MyRentalsPage } from "@/pages/MyRentalsPage";
 import { SignInPage } from "@/pages/SignInPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { AdminLayout } from "@/pages/admin/AdminLayout";
+import { AdminDashboardPage } from "@/pages/admin/AdminDashboardPage";
+import { AdminBookingsPage } from "@/pages/admin/AdminBookingsPage";
+import { AdminInventoryPage } from "@/pages/admin/AdminInventoryPage";
+import { AdminOccupancyPage } from "@/pages/admin/AdminOccupancyPage";
 
 export default function App() {
   return (
@@ -49,6 +54,20 @@ export default function App() {
               </RequireAuth>
             }
           />
+
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth adminOnly>
+                <AdminLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="bookings" element={<AdminBookingsPage />} />
+            <Route path="inventory" element={<AdminInventoryPage />} />
+            <Route path="occupancy" element={<AdminOccupancyPage />} />
+          </Route>
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
