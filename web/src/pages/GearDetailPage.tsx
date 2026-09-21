@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { useState } from "react";
 import { AvailabilityCalendar } from "@/components/gear/AvailabilityCalendar";
+import { ProductReviews } from "@/components/gear/ProductReviews";
 import { useCartStore } from "@/store/cart";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -191,6 +192,8 @@ export function GearDetailPage() {
           </p>
         )}
       </div>
+
+      <ProductReviews slug={item.slug} />
     </section>
   );
 }

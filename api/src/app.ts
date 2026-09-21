@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import type { Health } from "@shared/schemas/health.schema";
 import type { ApiSuccess } from "@shared/types/api";
-import { prisma } from "./lib/prisma";
 import { env } from "./config/env";
 import { apiRoutes } from "./routes";
 import { toNodeHandler } from "better-auth/node";

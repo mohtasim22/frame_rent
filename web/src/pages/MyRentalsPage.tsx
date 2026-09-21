@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { formatCents } from "@/lib/format";
 import { statusTone } from "@/lib/status";
 import { useMyBookings } from "@/hooks/useBooking";
+import { ReviewPrompt } from "@/components/reviews/ReviewPrompt";
 
 const SCOPES = [
   { value: "upcoming", label: "Upcoming" },
@@ -24,6 +25,8 @@ export function MyRentalsPage() {
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">My rentals</h1>
+
+      <ReviewPrompt />
 
       <div className="mt-4 flex gap-1 rounded-lg border p-1" role="tablist">
         {SCOPES.map((option) => (

@@ -61,9 +61,10 @@ The backlog breaks these into 66 vertical slices.
 - [x] **D — The catalogue.** React consuming the API, filters, pagination, designed dead ends. (D9 deploy deferred to group I.)
 - [x] **E — Availability.** Overlap logic, tests, calendar.
 - [x] **F — Booking.** Server-side pricing, the transaction, the race test.
-- [ ] **G — Auth across two origins.** The cookie tax.
-- [ ] **H — Admin.** Inventory, units, holds, booking lifecycle.
-- [ ] **I — Ship.** Deploy both halves (deferred D9), production CORS, Stripe, email, reviews, READMEs.
+- [x] **G — Auth across two origins.** The cookie tax.
+- [x] **H — Admin.** Inventory, units, holds, booking lifecycle. (H6 image upload needs a Cloudinary/UploadThing account.)
+- [~] **I — Ship.** Reviews (I4), polish (I5) and both READMEs (I6) are done.
+      Blocked on accounts and API keys: D9/I1 deploy, I2 Stripe, I3 Resend.
 
 ## The rule that shapes everything
 

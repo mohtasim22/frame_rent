@@ -43,7 +43,7 @@ async function sessionCookie(i: number): Promise<string> {
     throw new Error(`could not get a session for window ${i + 1}`);
 }
 
-async function checkout(i: number, cookie: string): Promise<Outcome> {
+async function checkout(cookie: string): Promise<Outcome> {
     const res = await fetch(`${base}/api/v1/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: origin, Cookie: cookie },
@@ -78,7 +78,7 @@ async function main() {
     );
 
     const outcomes = await Promise.all(
-        cookies.map((cookie, i) => checkout(i, cookie)),
+        cookies.map((cookie) => checkout(cookie)),
     );
 
     for (const [i, outcome] of outcomes.entries()) {
