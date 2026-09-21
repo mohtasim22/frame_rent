@@ -63,15 +63,27 @@ after inactivity. Build time runs once per deploy, which is what you want.
 
 ## 3. The client on Vercel
 
-New Project → import this repository. [vercel.json](../vercel.json) already
-declares the build, so the defaults should be right:
+New Project → import this repository.
 
 | Setting | Value |
 | --- | --- |
-| Root directory | *(leave blank — the repo root)* |
-| Install command | `npm install` |
-| Build command | `npm run build --workspace web` |
-| Output directory | `web/dist` |
+| **Root Directory** | **`web`** — this one matters, see below |
+| Framework preset | Vite (auto-detected) |
+| Install / build / output | leave the defaults |
+
+### Root Directory must be `web`
+
+Vercel treats a folder called `api` at the **project root** as Serverless
+Functions and compiles every `.ts` file inside it. With the repo root as the
+project root, it finds your Express controllers and tries to build them as
+functions — which fails, and would be wrong even if it succeeded.
+
+Pointing the Root Directory at `web` removes `api/` from Vercel's view
+entirely. npm workspaces still resolve, because Vercel walks up to the
+workspace root to install. If the build cannot find `shared/`, turn on
+**Include source files outside of the Root Directory** in the project settings.
+
+[web/vercel.json](../web/vercel.json) then holds only the SPA rewrite.
 
 One environment variable:
 
@@ -200,6 +212,12 @@ skips it on Windows without complaining.
 Do **not** try to fix this by deleting and regenerating the lockfile. On
 Windows that prunes the Linux binaries `@rolldown/binding`, `lightningcss` and
 `esbuild` already had, and trades one broken platform for three.
+
+**Vercel build fails with `Unable to resolve @typescript/typescript-linux-x64`.**
+The same lockfile problem as Tailwind: TypeScript 7 ships its compiler as a
+native binary per platform. `api/package.json` declares the Linux one as an
+optional dependency. If you also see it trying to compile files under `api/`,
+your Root Directory is wrong — see step 3.
 
 **Prisma client out of date at runtime.** `postinstall` runs `prisma generate`
 on every install, so this should not happen — but if you see it, the build ran

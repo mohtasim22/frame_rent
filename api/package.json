@@ -19,6 +19,9 @@
     "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
@@ -31,6 +34,9 @@
     "tsx": "^4.23.13",
     "zod": "^4.5.4"
   },
+  "optionalDependencies": {
+    "@typescript/typescript-linux-x64": "7.0.2"
+  },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -38,8 +44,5 @@
     "@types/pg": "^8.23.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
-  },
-  "engines": {
-    "node": ">=22"
   }
 }
