@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router";
-import { ShoppingCart } from "lucide-react";
+import { Aperture, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/useHealth";
 import { useCartCount } from "@/store/cart";
@@ -12,10 +12,21 @@ export function Header() {
   const navigate = useNavigate();
 
   return (
-    <header className="border-b">
+    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-3">
-        <Link to="/" className="font-semibold tracking-tight">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-semibold tracking-tight"
+        >
+          <Aperture className="size-5 text-brand-ink" aria-hidden="true" />
           FrameRent
+        </Link>
+
+        <Link
+          to="/gear"
+          className="mr-auto hidden text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline sm:block"
+        >
+          Catalogue
         </Link>
 
         <div className="flex items-center gap-4 text-sm">
@@ -39,21 +50,35 @@ export function Header() {
 
           <Link
             to="/cart"
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1.5 underline-offset-4 hover:underline"
             aria-label={`Cart, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
           >
             <ShoppingCart className="size-4" aria-hidden="true" />
-            {cartCount}
+            <span
+              className={
+                cartCount > 0
+                  ? "rounded-full bg-brand px-1.5 text-xs font-medium text-brand-foreground"
+                  : "text-muted-foreground"
+              }
+            >
+              {cartCount}
+            </span>
           </Link>
 
           {isPending ? null : session ? (
             <>
-              <Link to="/rentals" className="underline-offset-4 hover:underline">
+              <Link
+                to="/rentals"
+                className="underline-offset-4 hover:underline"
+              >
                 My rentals
               </Link>
 
               {session.user.role === "ADMIN" && (
-                <Link to="/admin" className="underline-offset-4 hover:underline">
+                <Link
+                  to="/admin"
+                  className="underline-offset-4 hover:underline"
+                >
                   Admin
                 </Link>
               )}

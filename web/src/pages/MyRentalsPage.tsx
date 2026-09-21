@@ -65,7 +65,7 @@ export function MyRentalsPage() {
           title={scope === "past" ? "No past rentals" : "Nothing booked yet"}
           description="When you rent something it shows up here."
           action={
-            <Link to="/" className="text-sm underline underline-offset-4">
+            <Link to="/gear" className="text-sm underline underline-offset-4">
               Browse the catalogue
             </Link>
           }

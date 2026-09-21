@@ -65,7 +65,7 @@ export function CheckoutPage() {
           title="Nothing to check out"
           description="Your cart is empty."
           action={
-            <Link to="/" className="text-sm underline underline-offset-4">
+            <Link to="/gear" className="text-sm underline underline-offset-4">
               Browse the catalogue
             </Link>
           }

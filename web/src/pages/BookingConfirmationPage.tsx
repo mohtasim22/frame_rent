@@ -36,7 +36,7 @@ export function BookingConfirmationPage() {
             title="No booking with that reference"
             description="Check the link in your confirmation email."
             action={
-              <Link to="/" className="text-sm underline underline-offset-4">
+              <Link to="/gear" className="text-sm underline underline-offset-4">
                 Browse the catalogue
               </Link>
             }
@@ -179,7 +179,7 @@ export function BookingConfirmationPage() {
         <Link to="/rentals" className="underline underline-offset-4">
           All my rentals
         </Link>
-        <Link to="/" className="underline underline-offset-4">
+        <Link to="/gear" className="underline underline-offset-4">
           Rent something else
         </Link>
       </div>

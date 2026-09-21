@@ -45,7 +45,7 @@ export function CartPage() {
           title="Your cart is empty"
           description="Pick a camera or a lens, choose your dates, and it will show up here."
           action={
-            <Link to="/" className="text-sm underline underline-offset-4">
+            <Link to="/gear" className="text-sm underline underline-offset-4">
               Browse the catalogue
             </Link>
           }

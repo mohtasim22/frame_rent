@@ -52,7 +52,7 @@ export function GearDetailPage() {
             title="We don't have that one"
             description="It may have been retired from the catalogue."
             action={
-              <Link to="/" className="text-sm underline underline-offset-4">
+              <Link to="/gear" className="text-sm underline underline-offset-4">
                 Browse the catalogue
               </Link>
             }
@@ -73,7 +73,7 @@ export function GearDetailPage() {
   return (
     <section className="mx-auto w-full max-w-5xl px-6 py-10">
       <Link
-        to="/"
+        to="/gear"
         className="text-sm text-muted-foreground underline underline-offset-4"
       >
         ← Back to the catalogue

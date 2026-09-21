@@ -1,10 +1,12 @@
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { RouteAnnouncer } from "@/components/layout/RouteAnnouncer";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { ErrorBoundary } from "@/components/states/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HomePage } from "@/pages/HomePage";
 import { GearListPage } from "@/pages/GearListPage";
 import { GearDetailPage } from "@/pages/GearDetailPage";
 import { CartPage } from "@/pages/CartPage";
@@ -54,63 +56,70 @@ function RouteFallback() {
 
 export default function App() {
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <Header />
       <RouteAnnouncer />
 
-      <ErrorBoundary>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<GearListPage />} />
-            <Route path="/gear/:slug" element={<GearDetailPage />} />
-            <Route path="/cart" element={<CartPage />} />
+      {/* flex-1 so the footer sits at the bottom of a short page rather than
+          floating halfway up it */}
+      <main className="flex-1">
+        <ErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/gear" element={<GearListPage />} />
+              <Route path="/gear/:slug" element={<GearDetailPage />} />
+              <Route path="/cart" element={<CartPage />} />
 
-            <Route path="/sign-in" element={<SignInPage mode="sign-in" />} />
-            <Route path="/sign-up" element={<SignInPage mode="sign-up" />} />
+              <Route path="/sign-in" element={<SignInPage mode="sign-in" />} />
+              <Route path="/sign-up" element={<SignInPage mode="sign-up" />} />
 
-            <Route
-              path="/checkout"
-              element={
-                <RequireAuth>
-                  <CheckoutPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/rentals"
-              element={
-                <RequireAuth>
-                  <MyRentalsPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/booking/:reference"
-              element={
-                <RequireAuth>
-                  <BookingConfirmationPage />
-                </RequireAuth>
-              }
-            />
+              <Route
+                path="/checkout"
+                element={
+                  <RequireAuth>
+                    <CheckoutPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/rentals"
+                element={
+                  <RequireAuth>
+                    <MyRentalsPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/booking/:reference"
+                element={
+                  <RequireAuth>
+                    <BookingConfirmationPage />
+                  </RequireAuth>
+                }
+              />
 
-            <Route
-              path="/admin"
-              element={
-                <RequireAuth adminOnly>
-                  <AdminLayout />
-                </RequireAuth>
-              }
-            >
-              <Route index element={<AdminDashboardPage />} />
-              <Route path="bookings" element={<AdminBookingsPage />} />
-              <Route path="inventory" element={<AdminInventoryPage />} />
-              <Route path="occupancy" element={<AdminOccupancyPage />} />
-            </Route>
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth adminOnly>
+                    <AdminLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route index element={<AdminDashboardPage />} />
+                <Route path="bookings" element={<AdminBookingsPage />} />
+                <Route path="inventory" element={<AdminInventoryPage />} />
+                <Route path="occupancy" element={<AdminOccupancyPage />} />
+              </Route>
 
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
-      </ErrorBoundary>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </main>
+
+      <Footer />
     </div>
   );
 }

@@ -6,6 +6,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    --color-brand: var(--brand);
+    --color-brand-ink: var(--brand-ink);
+    --color-brand-foreground: var(--brand-foreground);
+    --color-brand-muted: var(--brand-muted);
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -49,24 +53,39 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    /* Amber, for golden hour. The one saturated colour in the system — it marks
+       the primary action and nothing else, so it never has to compete. */
+    --brand: oklch(0.76 0.152 68);
+    --brand-foreground: oklch(0.24 0.04 62);
+    --brand-muted: oklch(0.96 0.03 80);
+
+    /* Two ambers, not one. --brand is a FILL: it only ever sits behind
+       something. --brand-ink is for TEXT and icons, dark enough to clear 4.5:1
+       on the page background — the fill amber manages only 2.18:1, which is
+       unreadable as type however good it looks. */
+    --brand-ink: oklch(0.55 0.13 55);
+
+    /* The neutrals carry a trace of the brand hue (chroma 0.004-0.012 rather
+       than a flat 0). Too small to read as colour, enough to stop the greys
+       looking like a default stylesheet. */
+    --background: oklch(0.995 0.003 80);
+    --foreground: oklch(0.17 0.012 65);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.17 0.012 65);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.17 0.012 65);
+    --primary: oklch(0.22 0.018 65);
+    --primary-foreground: oklch(0.985 0.005 80);
+    --secondary: oklch(0.965 0.006 80);
+    --secondary-foreground: oklch(0.22 0.018 65);
+    --muted: oklch(0.965 0.006 80);
+    --muted-foreground: oklch(0.545 0.014 68);
+    --accent: oklch(0.955 0.02 80);
+    --accent-foreground: oklch(0.24 0.04 62);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --border: oklch(0.915 0.006 80);
+    --input: oklch(0.915 0.006 80);
+    --ring: oklch(0.76 0.152 68);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -84,24 +103,33 @@
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    /* Lifted and slightly desaturated: the same amber at full chroma glares on
+       a dark background. */
+    --brand: oklch(0.8 0.14 72);
+    --brand-foreground: oklch(0.2 0.04 62);
+    --brand-muted: oklch(0.3 0.045 70);
+    /* On a dark background the fill amber is already 9.6:1, so ink and fill
+       can be the same colour here. */
+    --brand-ink: oklch(0.8 0.14 72);
+
+    --background: oklch(0.155 0.008 65);
+    --foreground: oklch(0.975 0.004 80);
+    --card: oklch(0.205 0.01 65);
+    --card-foreground: oklch(0.975 0.004 80);
+    --popover: oklch(0.205 0.01 65);
+    --popover-foreground: oklch(0.975 0.004 80);
+    --primary: oklch(0.92 0.006 80);
+    --primary-foreground: oklch(0.205 0.01 65);
+    --secondary: oklch(0.27 0.01 65);
+    --secondary-foreground: oklch(0.975 0.004 80);
+    --muted: oklch(0.27 0.01 65);
+    --muted-foreground: oklch(0.715 0.012 72);
+    --accent: oklch(0.29 0.02 70);
+    --accent-foreground: oklch(0.97 0.01 80);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(1 0 0 / 12%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    --ring: oklch(0.8 0.14 72);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
