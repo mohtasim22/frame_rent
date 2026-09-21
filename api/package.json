@@ -12,7 +12,8 @@
     "booking:test": "tsx --env-file=.env scripts/create-test-booking.ts",
     "availability": "tsx --env-file=.env scripts/show-availability.ts",
     "hold:test": "tsx --env-file=.env scripts/create-test-hold.ts",
-    "find:unit": "tsx --env-file=.env scripts/find-unit.ts"
+    "find:unit": "tsx --env-file=.env scripts/find-unit.ts",
+    "booking:race": "tsx --env-file=.env scripts/race-booking.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

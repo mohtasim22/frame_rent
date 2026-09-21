@@ -14,17 +14,28 @@ export function toDateString(date: Date): string {
 type UnitWithRanges = { id: string; ranges: DateRange[] };
 
 /**
+ * Anything that can run these four queries: the global client, or a transaction
+ * client handed out by `$transaction`. Structural, so neither one has to know
+ * about the other.
+ */
+export type AvailabilityDb = Pick<
+    typeof prisma,
+    "product" | "gearUnit" | "bookingItem" | "maintenanceHold"
+>;
+
+/**
  * Every bookable unit of a product, with the ranges that make it busy in
  * [from, to] — bookings (widened by the turnaround buffer) plus maintenance holds.
  */
 async function loadUnitRanges(
+    db: AvailabilityDb,
     productId: string,
     from: string,
     to: string,
 ): Promise<UnitWithRanges[]> {
     const [product, units] = await Promise.all([
-        prisma.product.findUnique({ where: { id: productId }, select: { bufferDays: true } }),
-        prisma.gearUnit.findMany({
+        db.product.findUnique({ where: { id: productId }, select: { bufferDays: true } }),
+        db.gearUnit.findMany({
             where: { productId, status: "AVAILABLE" },
             select: { id: true },
             orderBy: { serialNumber: "asc" },
@@ -39,7 +50,7 @@ async function loadUnitRanges(
     const windowEnd = new Date(`${addDays(to, bufferDays)}T00:00:00Z`);
 
     const [items, holds] = await Promise.all([
-        prisma.bookingItem.findMany({
+        db.bookingItem.findMany({
             where: {
                 gearUnitId: { in: unitIds },
                 startDate: { lte: windowEnd },
@@ -48,7 +59,7 @@ async function loadUnitRanges(
             },
             select: { gearUnitId: true, startDate: true, endDate: true },
         }),
-        prisma.maintenanceHold.findMany({
+        db.maintenanceHold.findMany({
             where: {
                 gearUnitId: { in: unitIds },
                 startDate: { lte: windowEnd },
@@ -99,19 +110,33 @@ export const availabilityService = {
     },
 
     async getUnavailableDates(productId: string, from: string, to: string): Promise<string[]> {
-        const units = await loadUnitRanges(productId, from, to);
+        const units = await loadUnitRanges(prisma, productId, from, to);
         if (units.length === 0) return eachDay(from, to);
 
         return unavailableDays(units.map((unit) => unit.ranges), from, to);
     },
 
     /**
-     * ADVISORY ONLY. By the time the caller acts on this, another request may have
-     * taken the unit — F5 re-checks inside the booking transaction.
+     * Advisory when called with the global client: by the time the caller acts on
+     * the answer, another request may have taken the unit.
+     *
+     * Authoritative when called with a transaction client that already holds a
+     * lock on this product's units — which is what booking.service does.
+     *
+     * `exclude` holds units already handed out earlier in the same request.
      */
-    async findAvailableUnit(productId: string, start: string, end: string): Promise<string | null> {
-        const units = await loadUnitRanges(productId, start, end);
-        return findFreeUnitId(units, { start, end });
+    async findAvailableUnit(
+        productId: string,
+        start: string,
+        end: string,
+        exclude: ReadonlySet<string> = new Set(),
+        db: AvailabilityDb = prisma,
+    ): Promise<string | null> {
+        const units = await loadUnitRanges(db, productId, start, end);
+        return findFreeUnitId(
+            units.filter((unit) => !exclude.has(unit.id)),
+            { start, end },
+        );
     },
 
 
