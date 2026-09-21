@@ -20,12 +20,23 @@ async function main() {
     console.log(`${attempts} customers all want ${start} → ${end}\n`);
 
     // All at once. Nothing is awaited between them — that is the whole point.
+    // Bookings belong to people now, so each racer needs a user row.
+    const racers = await Promise.all(
+        Array.from({ length: attempts }, async (_, i) => {
+            const email = `race-${i + 1}@framerent.local`;
+            const user = await prisma.user.upsert({
+                where: { email },
+                update: {},
+                create: { name: `Racer ${i + 1}`, email },
+                select: { id: true, email: true, name: true, role: true },
+            });
+            return user;
+        }),
+    );
+
     const results = await Promise.allSettled(
-        Array.from({ length: attempts }, (_, i) =>
-            bookingService.create({
-                lines: [{ slug, start, end }],
-                customer: { name: `Racer ${i + 1}`, email: `race-${i + 1}@framerent.local` },
-            }),
+        racers.map((racer) =>
+            bookingService.create({ lines: [{ slug, start, end }] }, racer),
         ),
     );
 

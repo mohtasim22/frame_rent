@@ -65,13 +65,13 @@ export type QuoteResponse = z.infer<typeof quoteResponseSchema>;
 
 export const PICKUP_METHODS = ["COUNTER", "COURIER"] as const;
 
+/**
+ * No name or email: the booking belongs to whoever holds the session cookie,
+ * and a client does not get to say who that is.
+ */
 export const createBookingSchema = z.object({
   lines: z.array(quoteLineSchema).min(1).max(MAX_LINES),
-  customer: z.object({
-    name: z.string().min(1).max(120),
-    email: z.email(),
-    phone: z.string().min(5).max(30).optional(),
-  }),
+  phone: z.string().min(5).max(30).optional(),
   pickupMethod: z.enum(PICKUP_METHODS).optional(),
   notes: z.string().max(500).optional(),
 });
@@ -103,6 +103,26 @@ export const bookingResponseSchema = z.object({
   pickupMethod: z.enum(PICKUP_METHODS).nullable(),
   items: z.array(bookingItemResultSchema),
 });
+
+export const myBookingsQuerySchema = z.object({
+  scope: z.enum(["upcoming", "past", "all"]).default("all"),
+});
+
+export type MyBookingsQuery = z.infer<typeof myBookingsQuerySchema>;
+
+export const bookingSummarySchema = z.object({
+  id: z.string(),
+  reference: z.string(),
+  status: z.enum(BOOKING_STATUSES),
+  startDate: z.string(),
+  endDate: z.string(),
+  totalCents: z.number().int(),
+  itemCount: z.number().int(),
+  headline: z.string(),
+  canCancel: z.boolean(),
+});
+
+export type BookingSummary = z.infer<typeof bookingSummarySchema>;
 
 export const bookingReferenceParamsSchema = z.object({
   reference: z.string().min(3).max(40).regex(/^[A-Z0-9-]+$/i),

@@ -5,6 +5,9 @@ import type { ApiSuccess } from "@shared/types/api";
 import { prisma } from "./lib/prisma";
 import { env } from "./config/env";
 import { apiRoutes } from "./routes";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./lib/auth";
+import { attachUser } from "./middleware/auth";
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/error";
 
@@ -17,6 +20,11 @@ app.use(
     credentials: true,
   })
 );
+
+// Mounted BEFORE express.json(). better-auth reads the raw request stream
+// itself; a body parser that has already drained it leaves nothing to read.
+// `*splat` is Express 5 syntax — a bare `*` no longer parses.
+app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 
@@ -31,6 +39,7 @@ app.get("/health", (_req, res) => {
   res.json(body);
 });
 
+app.use(attachUser);
 app.use("/api/v1", apiRoutes);
 app.use(notFound);
 app.use(errorHandler);

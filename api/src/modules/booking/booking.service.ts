@@ -9,7 +9,9 @@ import { quoteRental, rentalDays } from "@shared/lib/pricing";
 import type { Quote } from "@shared/lib/pricing";
 import type {
   BookingResponse,
+  BookingSummary,
   CreateBooking,
+  MyBookingsQuery,
   QuoteRequest,
   QuoteResponse,
 } from "@shared/schemas/booking.schema";
@@ -18,6 +20,7 @@ import {
   availabilityService,
   toDateString,
 } from "../availability/availability.service";
+import type { AuthUser } from "../../middleware/auth";
 
 type LineInput = QuoteRequest["lines"][number];
 
@@ -157,8 +160,8 @@ export const bookingService = {
    * rates are not what the race is about, and holding the lock for longer than
    * necessary is how you turn a correctness fix into a throughput problem.
    */
-  async create(input: CreateBooking): Promise<BookingResponse> {
-    const { lines, customer } = input;
+  async create(input: CreateBooking, user: AuthUser): Promise<BookingResponse> {
+    const { lines } = input;
 
     rejectPastDates(lines);
     const bySlug = await loadProducts(lines);
@@ -211,13 +214,103 @@ export const bookingService = {
           });
         }
 
-        return writeBooking(tx, input, allocations);
+        return writeBooking(tx, input, allocations, user);
       },
       { timeout: 20_000, maxWait: 10_000 },
     );
   },
 
-  async getByReference(reference: string): Promise<BookingResponse> {
+  async listMine(
+    user: AuthUser,
+    query: MyBookingsQuery,
+  ): Promise<BookingSummary[]> {
+    const todayDate = toDate(today());
+
+    const where =
+      query.scope === "upcoming"
+        ? { userId: user.id, endDate: { gte: todayDate } }
+        : query.scope === "past"
+          ? { userId: user.id, endDate: { lt: todayDate } }
+          : { userId: user.id };
+
+    const bookings = await prisma.booking.findMany({
+      where,
+      orderBy: [{ startDate: "desc" }, { id: "asc" }],
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        totalCents: true,
+        items: { select: { productName: true } },
+      },
+    });
+
+    return bookings.map((booking) => {
+      const startDate = toDateString(booking.startDate);
+      const [first, ...rest] = booking.items;
+
+      return {
+        id: booking.id,
+        reference: booking.reference,
+        status: booking.status,
+        startDate,
+        endDate: toDateString(booking.endDate),
+        totalCents: booking.totalCents,
+        itemCount: booking.items.length,
+        headline:
+          rest.length === 0
+            ? (first?.productName ?? "Booking")
+            : `${first.productName} + ${rest.length} more`,
+        canCancel: canCancel(booking.status, startDate),
+      };
+    });
+  },
+
+  /**
+   * Cancelling frees the units, because CANCELLED is not in
+   * BLOCKING_BOOKING_STATUSES — availability recomputes with no extra work.
+   */
+  async cancel(reference: string, user: AuthUser): Promise<BookingResponse> {
+    const booking = await prisma.booking.findUnique({
+      where: { reference },
+      select: { id: true, userId: true, status: true, startDate: true },
+    });
+
+    if (
+      booking === null ||
+      (booking.userId !== user.id && user.role !== "ADMIN")
+    ) {
+      throw new NotFoundError(`No booking with reference ${reference}`);
+    }
+
+    if (booking.status !== "PENDING") {
+      throw new ConflictError(
+        `A ${booking.status.toLowerCase()} booking cannot be cancelled`,
+        "NOT_CANCELLABLE",
+      );
+    }
+
+    if (!canCancel(booking.status, toDateString(booking.startDate))) {
+      throw new ConflictError(
+        `Cancellations close ${CANCEL_CUTOFF_HOURS} hours before pickup`,
+        "CANCEL_WINDOW_CLOSED",
+      );
+    }
+
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: "CANCELLED" },
+    });
+
+    return bookingService.getByReference(reference, user);
+  },
+
+  async getByReference(
+    reference: string,
+    user: AuthUser,
+  ): Promise<BookingResponse> {
     const booking = await prisma.booking.findUnique({
       where: { reference },
       include: {
@@ -236,7 +329,12 @@ export const bookingService = {
       },
     });
 
-    if (booking === null) {
+    // 404 rather than 403 for someone else's booking: a 403 would confirm that
+    // the reference exists, which is exactly what a guesser wants to learn.
+    if (
+      booking === null ||
+      (booking.userId !== user.id && user.role !== "ADMIN")
+    ) {
       throw new NotFoundError(`No booking with reference ${reference}`);
     }
 
@@ -266,6 +364,20 @@ export const bookingService = {
   },
 };
 
+/** Hours before pickup after which a booking can no longer be cancelled. */
+const CANCEL_CUTOFF_HOURS = 48;
+
+export function canCancel(
+  status: string,
+  startDate: string,
+  now = new Date(),
+): boolean {
+  if (status !== "PENDING") return false;
+
+  const pickup = new Date(`${startDate}T00:00:00Z`).getTime();
+  return pickup - now.getTime() > CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+}
+
 /**
  * `pickupMethod` is a plain column, so the database can hold a value the API
  * contract does not allow. Narrow it rather than asserting it.
@@ -283,9 +395,8 @@ async function writeBooking(
   tx: TxClient,
   input: CreateBooking,
   allocations: Allocation[],
+  user: AuthUser,
 ): Promise<BookingResponse> {
-  const { customer } = input;
-
   const subtotalCents = allocations.reduce(
     (sum, a) => sum + a.quote.subtotalCents,
     0,
@@ -305,15 +416,12 @@ async function writeBooking(
     allocations[0].line.end,
   );
 
-  const user = await tx.user.upsert({
-    where: { email: customer.email },
-    update: { name: customer.name, phone: customer.phone },
-    create: {
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-    },
-  });
+  if (input.phone !== undefined) {
+    await tx.user.update({
+      where: { id: user.id },
+      data: { phone: input.phone },
+    });
+  }
 
   const booking = await tx.booking.create({
     data: {
@@ -364,7 +472,7 @@ async function writeBooking(
     depositCents,
     feeCents: booking.feeCents,
     totalCents: booking.totalCents,
-    customerName: customer.name,
+    customerName: user.name,
     pickupMethod: input.pickupMethod ?? null,
     // Built from `allocations`, not from `booking.items` — a nested create
     // gives no ordering guarantee on the rows it returns.

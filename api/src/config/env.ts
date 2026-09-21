@@ -12,6 +12,10 @@ const envSchema = z.object({
       { message: "must be a postgresql:// connection string" }
     ),
   WEB_ORIGIN: z.url(),
+  API_URL: z.url(),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(32, "too short — generate one with crypto.randomBytes(32)"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -50,6 +51,9 @@ model User {
   bookings Booking[]
   reviews  Review[]
 
+  sessions Session[]
+  accounts Account[]
+
   @@map("users")
 }
 
@@ -86,10 +90,10 @@ model Product {
   images      String[]
   specs       Json     @default("{}")
 
-  dailyRateCents    Int
-  weeklyRateCents   Int?
-  depositCents      Int
-  replacementCents  Int
+  dailyRateCents   Int
+  weeklyRateCents  Int?
+  depositCents     Int
+  replacementCents Int
 
   mount      String?
   bufferDays Int     @default(1)
@@ -194,7 +198,6 @@ model BookingItem {
   @@map("booking_items")
 }
 
-
 model MaintenanceHold {
   id     String @id @default(uuid())
   reason String
@@ -232,4 +235,52 @@ model Review {
 
   @@index([productId])
   @@map("reviews")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
 }

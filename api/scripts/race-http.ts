@@ -13,16 +13,42 @@ const [, , slug = "canon-eos-r5", start = "2026-11-10", end = "2026-11-12", coun
 
 const attempts = Number(countArg ?? 4);
 const base = process.env.RACE_API ?? "http://localhost:4000";
+const origin = process.env.RACE_ORIGIN ?? "http://localhost:5173";
+
+// Fresh identities each run. Reusing an email that exists WITHOUT a credential
+// account — a guest row left by an older booking — can neither sign up nor in.
+const runId = Date.now().toString(36);
 
 type Outcome = { status: number; code?: string; reference?: string };
 
-async function checkout(i: number): Promise<Outcome> {
+/** Signs a racer up (or in) and returns their session cookie. */
+async function sessionCookie(i: number): Promise<string> {
+    const credentials = {
+        name: `Window ${i + 1}`,
+        email: `window-${i + 1}-${runId}@framerent.local`,
+        password: "a-good-password",
+    };
+
+    for (const path of ["/api/auth/sign-up/email", "/api/auth/sign-in/email"]) {
+        const res = await fetch(`${base}${path}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Origin: origin },
+            body: JSON.stringify(credentials),
+        });
+
+        const cookie = res.headers.getSetCookie().find((c) => c.startsWith("better-auth"));
+        if (cookie) return cookie.split(";")[0];
+    }
+
+    throw new Error(`could not get a session for window ${i + 1}`);
+}
+
+async function checkout(i: number, cookie: string): Promise<Outcome> {
     const res = await fetch(`${base}/api/v1/bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: origin, Cookie: cookie },
         body: JSON.stringify({
             lines: [{ slug, start, end }],
-            customer: { name: `Window ${i + 1}`, email: `window-${i + 1}@framerent.local` },
             pickupMethod: "COUNTER",
         }),
     });
@@ -46,8 +72,13 @@ async function main() {
     console.log(`${attempts} browser windows confirm ${start} → ${end} at once`);
     console.log(`POST ${base}/api/v1/bookings\n`);
 
+    // Sign everyone in FIRST, so the race is only over the camera.
+    const cookies = await Promise.all(
+        Array.from({ length: attempts }, (_, i) => sessionCookie(i)),
+    );
+
     const outcomes = await Promise.all(
-        Array.from({ length: attempts }, (_, i) => checkout(i)),
+        cookies.map((cookie, i) => checkout(i, cookie)),
     );
 
     for (const [i, outcome] of outcomes.entries()) {
@@ -64,7 +95,10 @@ async function main() {
     const { count } = await prisma.booking.deleteMany({
         where: { reference: { in: won.map((o) => o.reference!) } },
     });
-    console.log(`cleaned up ${count} booking(s)`);
+    const { count: users } = await prisma.user.deleteMany({
+        where: { email: { endsWith: `-${runId}@framerent.local` } },
+    });
+    console.log(`cleaned up ${count} booking(s) and ${users} test user(s)`);
 
     process.exit(0);
 }
