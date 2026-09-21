@@ -13,23 +13,23 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-3">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-5">
         <Link
           to="/"
-          className="flex items-center gap-2 font-semibold tracking-tight"
+          className="flex items-center gap-2 text-lg font-semibold tracking-tight"
         >
-          <Aperture className="size-5 text-brand-ink" aria-hidden="true" />
+          <Aperture className="size-6 text-brand-ink" aria-hidden="true" />
           FrameRent
         </Link>
 
         <Link
           to="/gear"
-          className="mr-auto hidden text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline sm:block"
+          className="mr-auto hidden text-[0.9375rem] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline sm:block"
         >
           Catalogue
         </Link>
 
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-5 text-[0.9375rem]">
           <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
             <span
               className={cn(
@@ -95,7 +95,10 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link to="/sign-in" className="underline-offset-4 hover:underline">
+            <Link
+              to="/sign-in"
+              className="font-semibold underline-offset-4 hover:text-brand-ink hover:underline"
+            >
               Sign in
             </Link>
           )}
