@@ -64,7 +64,9 @@ The backlog breaks these into 66 vertical slices.
 - [x] **G — Auth across two origins.** The cookie tax.
 - [x] **H — Admin.** Inventory, units, holds, booking lifecycle. (H6 image upload needs a Cloudinary/UploadThing account.)
 - [~] **I — Ship.** Reviews (I4), polish (I5) and both READMEs (I6) are done.
-      Blocked on accounts and API keys: D9/I1 deploy, I2 Stripe, I3 Resend.
+      D9/I1 deploy is prepared and documented in DEPLOY.md — it needs your
+      Render, Vercel and Neon accounts to actually run.
+      Blocked on API keys: I2 Stripe, I3 Resend.
 
 ## The rule that shapes everything
 

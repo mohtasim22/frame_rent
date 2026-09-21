@@ -1,0 +1,185 @@
+# Deploying FrameRent
+
+Two halves, two hosts, one database. The API goes to Render, the client to
+Vercel, and the database is a Neon branch separate from your development one.
+
+Do it in this order. Each step needs a URL from the one before it.
+
+---
+
+## 1. A production database
+
+In the Neon console, create a **new branch** (or a new project) for production.
+Keep it in the same region you develop against — `ap-southeast-1` — so the
+API and the database are not on opposite sides of the planet.
+
+Copy the **pooled** connection string. It has `-pooler` in the hostname. Keep
+`?sslmode=verify-full`.
+
+Do **not** reuse the development branch. It has test bookings, test users and
+`localhost` origins baked into its sessions.
+
+---
+
+## 2. The API on Render
+
+New → Web Service → connect this repository.
+
+| Setting | Value |
+| --- | --- |
+| Root directory | *(leave blank — the repo root)* |
+| Runtime | Node |
+| Build command | `npm install && npm run migrate:deploy --workspace api` |
+| Start command | `npm run start --workspace api` |
+| Health check path | `/health` |
+| Region | Singapore |
+
+Environment variables:
+
+```
+NODE_ENV             production
+DATABASE_URL         the pooled Neon string from step 1
+BETTER_AUTH_SECRET   a NEW secret, not your development one
+API_URL              https://<your-service>.onrender.com
+WEB_ORIGIN           http://localhost:5173        ← placeholder, fixed in step 4
+```
+
+Generate the secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+`WEB_ORIGIN` is a placeholder because Vercel has not given you a URL yet. The
+service will boot and `/health` will answer; sign-in will not work until step 4.
+
+### Why migrations run in the build command
+
+The free plan has no separate release phase. Running `migrate deploy` at
+**start** would re-run on every cold wake-up, and Render's free tier sleeps
+after inactivity. Build time runs once per deploy, which is what you want.
+
+---
+
+## 3. The client on Vercel
+
+New Project → import this repository. [vercel.json](../vercel.json) already
+declares the build, so the defaults should be right:
+
+| Setting | Value |
+| --- | --- |
+| Root directory | *(leave blank — the repo root)* |
+| Install command | `npm install` |
+| Build command | `npm run build --workspace web` |
+| Output directory | `web/dist` |
+
+One environment variable:
+
+```
+VITE_API_URL   https://<your-render-service>.onrender.com
+```
+
+Vite inlines `import.meta.env.*` **at build time**, so changing this later needs
+a redeploy, not just a restart.
+
+The `rewrites` rule in `vercel.json` sends every unmatched path to
+`index.html`. Without it, loading `/cart` directly is a 404 — the server looks
+for a file at that path, and in a single-page app there isn't one. Vercel checks
+real files first, so your JS and CSS still serve normally.
+
+---
+
+## 4. Point them at each other
+
+Back in Render, set `WEB_ORIGIN` to the Vercel URL and redeploy:
+
+```
+WEB_ORIGIN   https://<your-project>.vercel.app
+```
+
+To sign in from preview deploys too, list them comma separated:
+
+```
+WEB_ORIGIN   https://framerent.vercel.app,https://framerent-git-main-you.vercel.app
+```
+
+`WEB_ORIGIN` feeds both the CORS allowlist and better-auth's `trustedOrigins`,
+so an origin missing here fails twice: the browser blocks the response, and
+better-auth answers `403 INVALID_ORIGIN`.
+
+---
+
+## 5. Seed and make yourself an admin
+
+The production database is empty. From the Render shell:
+
+```bash
+npm run -w api exec -- prisma db seed
+```
+
+Then sign up through the deployed site, and promote yourself:
+
+```bash
+npm run make:admin you@example.com --workspace api
+```
+
+---
+
+## The cookie problem, one last time
+
+In development the API is `localhost:4000` and the client is `localhost:5173`.
+Different **origins**, but the same **site** — so a `SameSite=Lax` cookie rides
+along happily.
+
+In production they are `framerent-api.onrender.com` and `framerent.vercel.app`.
+Genuinely cross-site. A `Lax` cookie is simply **not sent**, and you get the
+classic symptom: sign-in returns 200, then every request is 401.
+
+[auth.ts](../api/src/lib/auth.ts) switches on `NODE_ENV`:
+
+```ts
+defaultCookieAttributes:
+  env.NODE_ENV === "production"
+    ? { sameSite: "none", secure: true, httpOnly: true }
+    : { sameSite: "lax", secure: false, httpOnly: true }
+```
+
+`SameSite=None` is the only value a browser attaches cross-site, and it is only
+honoured together with `Secure`. Verified locally in production mode:
+
+```
+set-cookie: __Secure-better-auth.session_token=…; Path=/; HttpOnly; Secure; SameSite=None
+```
+
+Note the `__Secure-` prefix better-auth adds. That prefix is a browser-enforced
+promise: a cookie named that way is **rejected outright** unless it is set over
+HTTPS with `Secure`. It is free defence against a downgrade attack — and it also
+means you cannot test production cookie settings over plain `http://localhost`.
+Both hosts give you HTTPS by default, so this only bites if you try to run the
+production config locally.
+
+---
+
+## If it breaks
+
+**Sign-in works, then everything is 401.** `WEB_ORIGIN` does not exactly match
+the site's origin. Scheme, host and port must all match; no trailing path. The
+env parser strips a trailing slash for you.
+
+**CORS error in the console.** Same cause. Check the response headers —
+`Access-Control-Allow-Origin` must echo your exact origin, and
+`Access-Control-Allow-Credentials: true` must be present. A wildcard `*` is
+rejected by browsers for credentialed requests, which is why the allowlist is a
+list and never `*`.
+
+**First request after a while takes 30+ seconds.** Render's free tier sleeps.
+Expected. Mention it in your README rather than letting an interviewer think the
+app is slow.
+
+**`P1001: Can't reach database server`.** The Neon string is wrong, or it is the
+direct host rather than the pooled one.
+
+**Prisma client out of date at runtime.** `postinstall` runs `prisma generate`
+on every install, so this should not happen — but if you see it, the build ran
+with `NODE_ENV=production` and skipped devDependencies. That is why `tsx` and
+`prisma` are regular dependencies in `api/package.json`, not dev ones.

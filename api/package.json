@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
-    "start": "tsx --env-file=.env src/server.ts",
+    "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -15,7 +15,9 @@
     "find:unit": "tsx --env-file=.env scripts/find-unit.ts",
     "booking:race": "tsx --env-file=.env scripts/race-booking.ts",
     "booking:race:http": "tsx --env-file=.env scripts/race-http.ts",
-    "make:admin": "tsx --env-file=.env scripts/make-admin.ts"
+    "make:admin": "tsx --env-file=.env scripts/make-admin.ts",
+    "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -25,6 +27,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg": "^8.23.0",
+    "prisma": "7.10.0",
+    "tsx": "^4.23.13",
     "zod": "^4.5.4"
   },
   "devDependencies": {
@@ -32,9 +36,10 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.5.0",
     "@types/pg": "^8.23.1",
-    "prisma": "7.10.0",
-    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

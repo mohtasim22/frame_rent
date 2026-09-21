@@ -127,9 +127,16 @@ matters.
 **Archive, never delete.** Products with bookings against them are history.
 `isActive: false` hides them from every public query.
 
+## Deploying
+
+See **[docs/DEPLOY.md](docs/DEPLOY.md)**. Render for the API, Vercel for the
+client, a separate Neon branch for the database — and the cross-site cookie
+switch that makes sign-in survive the move off `localhost`.
+
 ## Repository map
 
 - **[api/README.md](api/README.md)** — endpoints, schema, scripts, environment
+- **[docs/DEPLOY.md](docs/DEPLOY.md)** — deploying both halves
 - **[docs/BUILD_PLAN.md](docs/BUILD_PLAN.md)** — how this was built, in order
 - **`shared/lib/`** — pure functions with no I/O: pricing, lifecycle transitions
 - **`api/src/modules/availability/`** — the overlap engine, tested without a

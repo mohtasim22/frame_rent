@@ -9,7 +9,7 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
 
   // Requests from anywhere else are refused before they reach a handler.
-  trustedOrigins: [env.WEB_ORIGIN],
+  trustedOrigins: env.WEB_ORIGIN,
 
   database: prismaAdapter(prisma, { provider: "postgresql" }),
 

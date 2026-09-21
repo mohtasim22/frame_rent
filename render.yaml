@@ -1,0 +1,26 @@
+# Render blueprint for the API. Import this from the Render dashboard, or use
+# it as a written record of the settings if you configure the service by hand.
+services:
+  - type: web
+    name: framerent-api
+    runtime: node
+    plan: free
+    region: singapore # same region as the Neon database
+    rootDir: .
+    # Migrations run at build time. The free plan has no separate release
+    # phase, and running them at start would re-run on every cold wake-up.
+    buildCommand: npm install && npm run migrate:deploy --workspace api
+    startCommand: npm run start --workspace api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # sync: false means "ask me in the dashboard" — these never enter git.
+      - key: DATABASE_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: API_URL
+        sync: false
