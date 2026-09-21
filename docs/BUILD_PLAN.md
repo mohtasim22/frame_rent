@@ -17,7 +17,7 @@ FrameRent/
 ├─ web/          Vite + React + TanStack Query   ·  port 5173
 ├─ shared/       zod schemas + types BOTH sides import
 ├─ docs/
-└─ package.json  root: concurrently, starts both
+└─ package.json  root: npm workspaces (two terminals, no concurrently)
 ```
 
 Two `package.json`, two dev servers, two deployments — a real split. One git repo,
@@ -31,17 +31,17 @@ so types that cross the wire are written once instead of twice.
 | Runtime    | Node 22 + Express 5          |
 | Language   | TypeScript (strict), `tsx watch` |
 | Database   | PostgreSQL (Neon)            |
-| ORM        | Prisma 6                     |
+| ORM        | Prisma 7 (driver adapters)   |
 | Validation | zod (schemas live in `shared/`) |
 | Auth       | better-auth                  |
-| Testing    | Vitest (availability only)   |
+| Testing    | Vitest (pure rules, 55 tests)|
 | Hosting    | Railway or Render            |
 
 ### web/
 | Layer    | Choice                        |
 | -------- | ----------------------------- |
 | Build    | Vite + React 19 + TypeScript  |
-| Routing  | React Router 7                |
+| Routing  | React Router 8                |
 | Data     | TanStack Query                |
 | Styling  | Tailwind v4 + shadcn/ui       |
 | Forms    | react-hook-form + zod         |
@@ -59,8 +59,8 @@ The backlog breaks these into 66 vertical slices.
 - [x] **B — Schema and seed.** One model end to end first, then all nine.
 - [x] **C — The gear API.** Endpoints only, tested in Postman. No UI.
 - [x] **D — The catalogue.** React consuming the API, filters, pagination, designed dead ends. (D9 deploy deferred to group I.)
-- [ ] **E — Availability.** Overlap logic, tests, calendar.
-- [ ] **F — Booking.** Server-side pricing, the transaction, the race test.
+- [x] **E — Availability.** Overlap logic, tests, calendar.
+- [x] **F — Booking.** Server-side pricing, the transaction, the race test.
 - [ ] **G — Auth across two origins.** The cookie tax.
 - [ ] **H — Admin.** Inventory, units, holds, booking lifecycle.
 - [ ] **I — Ship.** Deploy both halves (deferred D9), production CORS, Stripe, email, reviews, READMEs.
@@ -89,8 +89,8 @@ Never put a raw `Date` object on the wire.
    `credentials: "include"` on every request, `SameSite=None; Secure` in production.
 2. **Shared types.** Anything crossing the network is defined once in `shared/`.
    Copy-pasting an interface plants a drift bug.
-3. **Two of everything.** Two `.env`, two deploys, two logs. Root `concurrently`
-   handles dev; write down in the README which variable belongs where.
+3. **Two of everything.** Two `.env`, two deploys, two logs. Two terminals in
+   dev; write down in the README which variable belongs where.
 
 ## Review checkpoints
 
@@ -100,3 +100,29 @@ Never put a raw `Date` object on the wire.
 | C     | one full module (routes/controller/service) |
 | E     | `availability.service.ts` + its tests   |
 | F     | `booking.service.ts` (the transaction)  |
+
+## How the race is actually closed
+
+`bookingService.create` runs allocation and insert inside one `$transaction`
+whose first statement is:
+
+```sql
+SELECT id FROM gear_units WHERE "productId" IN (...) ORDER BY id FOR UPDATE
+```
+
+Product ids are sorted before locking, so two carts holding the same two
+products always take the locks in the same order and cannot deadlock.
+Availability is then re-read *through the transaction client*, which is what
+turns an advisory answer into a decision.
+
+Proof, on a two-unit camera with four simultaneous checkouts:
+
+```
+window 1: 201 booked FR-...
+window 2: 409 UNIT_UNAVAILABLE
+window 3: 409 UNIT_UNAVAILABLE
+window 4: 201 booked FR-...
+```
+
+`npm run booking:race` races the service directly;
+`npm run booking:race:http` races a running server over HTTP.
