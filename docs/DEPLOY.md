@@ -188,6 +188,19 @@ Prisma command equally, including the ones that never connect. `generate` now
 works anywhere; `migrate deploy` still fails loudly with
 `Connection url is empty` if the variable is genuinely missing.
 
+**Vercel build fails with `MODULE_NOT_FOUND` for `@tailwindcss/oxide`.**
+Tailwind v4 ships a Rust binary as one optional dependency per platform, and
+npm records in `package-lock.json` only the ones it installed on the machine
+that generated the lock. Generating it on Windows therefore captured
+`oxide-win32-x64-msvc` and nothing else, so a Linux build had no binary to
+load. `web/package.json` now declares `@tailwindcss/oxide-linux-x64-gnu` as an
+**optional** dependency, which puts it in the lockfile; being optional, npm
+skips it on Windows without complaining.
+
+Do **not** try to fix this by deleting and regenerating the lockfile. On
+Windows that prunes the Linux binaries `@rolldown/binding`, `lightningcss` and
+`esbuild` already had, and trades one broken platform for three.
+
 **Prisma client out of date at runtime.** `postinstall` runs `prisma generate`
 on every install, so this should not happen — but if you see it, the build ran
 with `NODE_ENV=production` and skipped devDependencies. That is why `tsx` and
