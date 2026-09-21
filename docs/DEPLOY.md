@@ -179,6 +179,15 @@ app is slow.
 **`P1001: Can't reach database server`.** The Neon string is wrong, or it is the
 direct host rather than the pooled one.
 
+**Vercel build fails with `Cannot resolve environment variable: DATABASE_URL`.**
+`npm install` at the repo root runs every workspace's `postinstall`, so the
+frontend host runs `prisma generate` too — and it has no database. The Prisma
+config therefore reads `process.env.DATABASE_URL` directly instead of
+`env("DATABASE_URL")`, which throws at config-load time and so breaks every
+Prisma command equally, including the ones that never connect. `generate` now
+works anywhere; `migrate deploy` still fails loudly with
+`Connection url is empty` if the variable is genuinely missing.
+
 **Prisma client out of date at runtime.** `postinstall` runs `prisma generate`
 on every install, so this should not happen — but if you see it, the build ran
 with `NODE_ENV=production` and skipped devDependencies. That is why `tsx` and

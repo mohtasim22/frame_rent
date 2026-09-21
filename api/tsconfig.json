@@ -16,5 +16,11 @@
       "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "../shared/**/*.ts", "prisma/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "../shared/**/*.ts",
+    "prisma/**/*.ts",
+    "prisma7.config.ts"
+  ]
 }
