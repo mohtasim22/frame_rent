@@ -149,3 +149,53 @@ POST {{api}}/bookings/quote
 Content-Type: application/json
 
 { "lines": [] }
+
+###############################################
+# Bookings — create (F4/F5)
+###############################################
+
+### Create a booking — expect 201
+POST {{api}}/bookings
+Content-Type: application/json
+
+{
+  "lines": [{ "slug": "canon-eos-r5", "start": "2026-11-02", "end": "2026-11-05" }],
+  "customer": { "name": "Mohtasim Fahim", "email": "mohtasim@example.com" },
+  "pickupMethod": "COUNTER"
+}
+
+### Same camera, same dates, twice in one cart — expect 201 with TWO different serials
+POST {{api}}/bookings
+Content-Type: application/json
+
+{
+  "lines": [
+    { "slug": "canon-eos-r5", "start": "2026-12-01", "end": "2026-12-03" },
+    { "slug": "canon-eos-r5", "start": "2026-12-01", "end": "2026-12-03" }
+  ],
+  "customer": { "name": "Mohtasim Fahim", "email": "mohtasim@example.com" }
+}
+
+### A third time on the same dates — expect 409 UNIT_UNAVAILABLE (only 2 units)
+POST {{api}}/bookings
+Content-Type: application/json
+
+{
+  "lines": [{ "slug": "canon-eos-r5", "start": "2026-12-01", "end": "2026-12-03" }],
+  "customer": { "name": "Someone Else", "email": "someone@example.com" }
+}
+
+### Bad email — expect 400
+POST {{api}}/bookings
+Content-Type: application/json
+
+{
+  "lines": [{ "slug": "canon-eos-r5", "start": "2026-11-02", "end": "2026-11-05" }],
+  "customer": { "name": "Nope", "email": "not-an-email" }
+}
+
+### Look a booking up by reference — expect 200
+GET {{api}}/bookings/FR-REPLACE-ME
+
+### Unknown reference — expect 404
+GET {{api}}/bookings/FR-NOPE-NOPE

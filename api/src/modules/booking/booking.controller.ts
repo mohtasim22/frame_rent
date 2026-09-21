@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import type { ApiSuccess } from "@shared/types/api";
 import type { BookingResponse, QuoteResponse } from "@shared/schemas/booking.schema";
-import { createBookingSchema, quoteRequestSchema } from "@shared/schemas/booking.schema";
+import {
+  bookingReferenceParamsSchema,
+  createBookingSchema,
+  quoteRequestSchema,
+} from "@shared/schemas/booking.schema";
 import { bookingService } from "./booking.service";
 
 export const bookingController = {
@@ -19,5 +23,13 @@ export const bookingController = {
 
     const body: ApiSuccess<BookingResponse> = { success: true, data: booking };
     res.status(201).json(body);
+  },
+
+  async getByReference(req: Request, res: Response) {
+    const { reference } = bookingReferenceParamsSchema.parse(req.params);
+    const booking = await bookingService.getByReference(reference.toUpperCase());
+
+    const body: ApiSuccess<BookingResponse> = { success: true, data: booking };
+    res.json(body);
   },
 };

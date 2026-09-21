@@ -1,5 +1,10 @@
 import { prisma } from "../../lib/prisma";
-import { BadRequestError, ConflictError, NotFoundError } from "../../lib/errors";
+import { Prisma } from "../../generated/prisma/client";
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from "../../lib/errors";
 import { quoteRental, rentalDays } from "@shared/lib/pricing";
 import type { Quote } from "@shared/lib/pricing";
 import type {
@@ -8,7 +13,11 @@ import type {
   QuoteRequest,
   QuoteResponse,
 } from "@shared/schemas/booking.schema";
-import { availabilityService } from "../availability/availability.service";
+import { PICKUP_METHODS } from "@shared/schemas/booking.schema";
+import {
+  availabilityService,
+  toDateString,
+} from "../availability/availability.service";
 
 type LineInput = QuoteRequest["lines"][number];
 
@@ -56,7 +65,9 @@ function rejectPastDates(lines: LineInput[]): void {
 }
 
 /** One query for every slug in the cart, and a 404 if any of them is unknown. */
-async function loadProducts(lines: LineInput[]): Promise<Map<string, ProductRates>> {
+async function loadProducts(
+  lines: LineInput[],
+): Promise<Map<string, ProductRates>> {
   const slugs = [...new Set(lines.map((line) => line.slug))];
 
   const products = await prisma.product.findMany({
@@ -116,8 +127,14 @@ export const bookingService = {
       }),
     );
 
-    const subtotalCents = priced.reduce((sum, line) => sum + line.subtotalCents, 0);
-    const depositCents = priced.reduce((sum, line) => sum + line.depositCents, 0);
+    const subtotalCents = priced.reduce(
+      (sum, line) => sum + line.subtotalCents,
+      0,
+    );
+    const depositCents = priced.reduce(
+      (sum, line) => sum + line.depositCents,
+      0,
+    );
 
     return {
       lines: priced,
@@ -129,11 +146,16 @@ export const bookingService = {
   },
 
   /**
-   * NAIVE ON PURPOSE (slice F4).
+   * Creates a booking (slice F5).
    *
-   * Availability is checked here and the rows are written further down, with
-   * awaits in between. Another request can slip through that gap and take the
-   * same unit. F5 moves the check inside the transaction that writes the rows.
+   * Everything that decides who gets the camera happens inside ONE transaction,
+   * and the first statement in it takes a row lock on every unit of every
+   * product in the cart. A second checkout for the same gear blocks on that lock
+   * until this one commits, then re-reads the bookings and sees ours.
+   *
+   * The catalogue read above the transaction is deliberate: product names and
+   * rates are not what the race is about, and holding the lock for longer than
+   * necessary is how you turn a correctness fix into a throughput problem.
    */
   async create(input: CreateBooking): Promise<BookingResponse> {
     const { lines, customer } = input;
@@ -141,113 +163,220 @@ export const bookingService = {
     rejectPastDates(lines);
     const bySlug = await loadProducts(lines);
 
-    // Sequential, not Promise.all: each line must see what the previous one took.
-    const taken = new Set<string>();
-    const allocations: Allocation[] = [];
+    // Sorted so that two carts holding the same two products always lock them
+    // in the same order — locks taken in different orders deadlock.
+    const productIds = [
+      ...new Set([...bySlug.values()].map((product) => product.id)),
+    ].sort();
 
-    for (const line of lines) {
-      const product = bySlug.get(line.slug)!;
+    return prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw(Prisma.sql`
+          SELECT id FROM gear_units
+          WHERE "productId" IN (${Prisma.join(productIds)})
+          ORDER BY id
+          FOR UPDATE
+        `);
 
-      const unitId = await availabilityService.findAvailableUnit(
-        product.id,
-        line.start,
-        line.end,
-        taken,
-      );
+        // Sequential, not Promise.all: each line must see what the previous took.
+        const taken = new Set<string>();
+        const allocations: Allocation[] = [];
 
-      if (unitId === null) {
-        throw new ConflictError(
-          `${product.name} is not available ${line.start} to ${line.end}`,
-          "UNIT_UNAVAILABLE",
-        );
-      }
+        for (const line of lines) {
+          const product = bySlug.get(line.slug)!;
 
-      taken.add(unitId);
-      allocations.push({
-        line,
-        product,
-        unitId,
-        quote: quoteRental(product, rentalDays(line.start, line.end)),
-      });
-    }
+          // `tx` — reading through the transaction that holds the lock is what
+          // turns this from a hint into a decision.
+          const unitId = await availabilityService.findAvailableUnit(
+            product.id,
+            line.start,
+            line.end,
+            taken,
+            tx,
+          );
 
-    const subtotalCents = allocations.reduce((sum, a) => sum + a.quote.subtotalCents, 0);
-    const depositCents = allocations.reduce((sum, a) => sum + a.quote.depositCents, 0);
+          if (unitId === null) {
+            throw new ConflictError(
+              `${product.name} is not available ${line.start} to ${line.end}`,
+              "UNIT_UNAVAILABLE",
+            );
+          }
 
-    // The booking's dates are the envelope across its items.
-    const startDate = allocations.reduce(
-      (min, a) => (a.line.start < min ? a.line.start : min),
-      allocations[0].line.start,
+          taken.add(unitId);
+          allocations.push({
+            line,
+            product,
+            unitId,
+            quote: quoteRental(product, rentalDays(line.start, line.end)),
+          });
+        }
+
+        return writeBooking(tx, input, allocations);
+      },
+      { timeout: 20_000, maxWait: 10_000 },
     );
-    const endDate = allocations.reduce(
-      (max, a) => (a.line.end > max ? a.line.end : max),
-      allocations[0].line.end,
-    );
+  },
 
-    const user = await prisma.user.upsert({
-      where: { email: customer.email },
-      update: { name: customer.name, phone: customer.phone },
-      create: { name: customer.name, email: customer.email, phone: customer.phone },
-    });
-
-    const booking = await prisma.booking.create({
-      data: {
-        reference: newReference(),
-        status: "PENDING",
-        startDate: toDate(startDate),
-        endDate: toDate(endDate),
-        subtotalCents,
-        depositCents,
-        feeCents: 0,
-        totalCents: subtotalCents + depositCents,
-        pickupMethod: input.pickupMethod,
-        notes: input.notes,
-        userId: user.id,
+  async getByReference(reference: string): Promise<BookingResponse> {
+    const booking = await prisma.booking.findUnique({
+      where: { reference },
+      include: {
+        user: { select: { name: true } },
         items: {
-          create: allocations.map((a) => ({
-            gearUnitId: a.unitId,
-            startDate: toDate(a.line.start),
-            endDate: toDate(a.line.end),
-            productName: a.product.name,
-            dailyRateCents: a.product.dailyRateCents,
-            days: a.quote.days,
-            lineTotalCents: a.quote.subtotalCents,
-          })),
+          orderBy: { startDate: "asc" },
+          include: {
+            gearUnit: {
+              select: {
+                serialNumber: true,
+                product: { select: { slug: true } },
+              },
+            },
+          },
         },
       },
-      include: {
-        items: { select: { gearUnitId: true, gearUnit: { select: { serialNumber: true } } } },
-      },
     });
 
-    const serialByUnit = new Map(
-      booking.items.map((item) => [item.gearUnitId, item.gearUnit.serialNumber]),
-    );
+    if (booking === null) {
+      throw new NotFoundError(`No booking with reference ${reference}`);
+    }
 
     return {
       id: booking.id,
       reference: booking.reference,
       status: booking.status,
-      startDate,
-      endDate,
-      subtotalCents,
-      depositCents,
+      startDate: toDateString(booking.startDate),
+      endDate: toDateString(booking.endDate),
+      subtotalCents: booking.subtotalCents,
+      depositCents: booking.depositCents,
       feeCents: booking.feeCents,
       totalCents: booking.totalCents,
-      customerName: customer.name,
-      pickupMethod: input.pickupMethod ?? null,
-      // Built from `allocations`, not from `booking.items` — a nested create
-      // gives no ordering guarantee on the rows it returns.
-      items: allocations.map((a) => ({
-        productName: a.product.name,
-        slug: a.product.slug,
-        serialNumber: serialByUnit.get(a.unitId)!,
-        start: a.line.start,
-        end: a.line.end,
-        days: a.quote.days,
-        dailyRateCents: a.product.dailyRateCents,
-        lineTotalCents: a.quote.subtotalCents,
+      customerName: booking.user.name,
+      pickupMethod: asPickupMethod(booking.pickupMethod),
+      items: booking.items.map((item) => ({
+        productName: item.productName,
+        slug: item.gearUnit.product.slug,
+        serialNumber: item.gearUnit.serialNumber,
+        start: toDateString(item.startDate),
+        end: toDateString(item.endDate),
+        days: item.days,
+        dailyRateCents: item.dailyRateCents,
+        lineTotalCents: item.lineTotalCents,
       })),
     };
   },
 };
+
+/**
+ * `pickupMethod` is a plain column, so the database can hold a value the API
+ * contract does not allow. Narrow it rather than asserting it.
+ */
+function asPickupMethod(value: string | null): BookingResponse["pickupMethod"] {
+  return PICKUP_METHODS.includes(value as (typeof PICKUP_METHODS)[number])
+    ? (value as (typeof PICKUP_METHODS)[number])
+    : null;
+}
+
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Writes the user, the booking and its items. Called only inside the lock. */
+async function writeBooking(
+  tx: TxClient,
+  input: CreateBooking,
+  allocations: Allocation[],
+): Promise<BookingResponse> {
+  const { customer } = input;
+
+  const subtotalCents = allocations.reduce(
+    (sum, a) => sum + a.quote.subtotalCents,
+    0,
+  );
+  const depositCents = allocations.reduce(
+    (sum, a) => sum + a.quote.depositCents,
+    0,
+  );
+
+  // The booking's dates are the envelope across its items.
+  const startDate = allocations.reduce(
+    (min, a) => (a.line.start < min ? a.line.start : min),
+    allocations[0].line.start,
+  );
+  const endDate = allocations.reduce(
+    (max, a) => (a.line.end > max ? a.line.end : max),
+    allocations[0].line.end,
+  );
+
+  const user = await tx.user.upsert({
+    where: { email: customer.email },
+    update: { name: customer.name, phone: customer.phone },
+    create: {
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+    },
+  });
+
+  const booking = await tx.booking.create({
+    data: {
+      reference: newReference(),
+      status: "PENDING",
+      startDate: toDate(startDate),
+      endDate: toDate(endDate),
+      subtotalCents,
+      depositCents,
+      feeCents: 0,
+      totalCents: subtotalCents + depositCents,
+      pickupMethod: input.pickupMethod,
+      notes: input.notes,
+      userId: user.id,
+      items: {
+        create: allocations.map((a) => ({
+          gearUnitId: a.unitId,
+          startDate: toDate(a.line.start),
+          endDate: toDate(a.line.end),
+          productName: a.product.name,
+          dailyRateCents: a.product.dailyRateCents,
+          days: a.quote.days,
+          lineTotalCents: a.quote.subtotalCents,
+        })),
+      },
+    },
+    include: {
+      items: {
+        select: {
+          gearUnitId: true,
+          gearUnit: { select: { serialNumber: true } },
+        },
+      },
+    },
+  });
+
+  const serialByUnit = new Map(
+    booking.items.map((item) => [item.gearUnitId, item.gearUnit.serialNumber]),
+  );
+
+  return {
+    id: booking.id,
+    reference: booking.reference,
+    status: booking.status,
+    startDate,
+    endDate,
+    subtotalCents,
+    depositCents,
+    feeCents: booking.feeCents,
+    totalCents: booking.totalCents,
+    customerName: customer.name,
+    pickupMethod: input.pickupMethod ?? null,
+    // Built from `allocations`, not from `booking.items` — a nested create
+    // gives no ordering guarantee on the rows it returns.
+    items: allocations.map((a) => ({
+      productName: a.product.name,
+      slug: a.product.slug,
+      serialNumber: serialByUnit.get(a.unitId)!,
+      start: a.line.start,
+      end: a.line.end,
+      days: a.quote.days,
+      dailyRateCents: a.product.dailyRateCents,
+      lineTotalCents: a.quote.subtotalCents,
+    })),
+  };
+}
