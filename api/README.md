@@ -2,6 +2,9 @@
 
 Express 5 + TypeScript + Prisma 7, on PostgreSQL. Port 4000.
 
+Live: https://frame-rent-api.onrender.com/health (free tier — first request
+after an idle spell takes about 30 seconds).
+
 Every response is an envelope:
 
 ```json
@@ -26,6 +29,7 @@ src/
    ├─ availability/       the overlap engine (pure rules + a Prisma service)
    ├─ booking/            quoting, the booking transaction, cancellation
    ├─ admin/              lifecycle, inventory, dashboard, occupancy
+   ├─ payment/            Stripe intents, the webhook, deposit holds
    ├─ review/             gated on a RETURNED booking
    ├─ gear/  brand/  category/
 ```
@@ -38,7 +42,8 @@ contain business rules.
 
 ```ts
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
-app.all("/api/auth/*splat", toNodeHandler(auth));   // BEFORE express.json()
+app.all("/api/auth/*splat", toNodeHandler(auth));        // BEFORE express.json()
+app.post("/api/v1/stripe/webhook", express.raw(...));    // ALSO before it
 app.use(express.json());
 app.use(attachUser);
 app.use("/api/v1", apiRoutes);
@@ -46,10 +51,13 @@ app.use(notFound);
 app.use(errorHandler);                               // 4 params = error handler
 ```
 
-better-auth reads the raw request stream itself. `express.json()` drains that
-stream, so mounting it first leaves the auth handler with an empty body and
-every sign-in fails confusingly. `*splat` is Express 5 syntax — a bare `*` no
-longer parses.
+Two handlers must run before the body parser, for the same underlying reason.
+better-auth reads the raw request stream itself, and `express.json()` drains it.
+Stripe signs the exact bytes it sent, and a parsed-then-reserialised body has
+different bytes, so the signature never verifies. Mount the parser first and
+both fail in ways that look like anything except middleware order.
+
+`*splat` is Express 5 syntax — a bare `*` no longer parses.
 
 ## Endpoints
 
@@ -77,6 +85,7 @@ Quoting is public on purpose: the cart shows a total before anyone signs in.
 | `POST` | `/api/v1/bookings/:reference/cancel` | PENDING and more than 48h out |
 | `GET` | `/api/v1/reviews/mine` | bookings that have earned a review |
 | `POST` | `/api/v1/reviews` | `409 NOT_RETURNED` until the gear is back |
+| `POST` | `/api/v1/payments/bookings/:reference/intent` | client secret for the rental charge |
 
 Returning 404 rather than 403 for another user's reference is deliberate: a 403
 confirms the reference exists, which is exactly what someone guessing wants to
@@ -99,6 +108,18 @@ protected by default rather than protected if somebody remembers.
 | `PATCH` | `/api/v1/admin/units/:id` | `409` if retiring a unit with live bookings |
 | `POST` `DELETE` | `/api/v1/admin/holds[/:id]` | `409` if the window clashes |
 
+### Webhook
+
+`POST /api/v1/stripe/webhook` — unauthenticated by design, verified by
+signature instead. Handles `payment_intent.succeeded`,
+`payment_intent.payment_failed` and `charge.refunded`; everything else is
+acknowledged and ignored.
+
+Every handler uses `updateMany` rather than `update`, so a duplicate delivery
+matches nothing instead of throwing. A 500 asks Stripe to retry, which means
+each handler has to be safe to run twice — retries and duplicate deliveries
+both happen.
+
 ## The booking lifecycle
 
 ```
@@ -120,14 +141,16 @@ frees the units with no extra bookkeeping: availability simply recomputes.
 
 ## Schema
 
-Nine models. The ones that matter:
+Twelve models — nine of the domain, plus `Session`, `Account` and
+`Verification`, which better-auth owns. The ones that matter:
 
 - **Product** — catalogue entry, rates, `bufferDays`, JSON `specs` validated by
   a zod discriminated union
 - **GearUnit** — a physical item with a serial number, condition and status.
   Availability is decided per unit
-- **Booking** — reference, status, money, and dates that are the **envelope**
-  across its items
+- **Booking** — reference, status, money, payment and deposit state, and dates
+  that are the **envelope** across its items. `paymentDueBy` is how long an
+  unpaid booking may keep holding its units
 - **BookingItem** — one product for one date range, with its **own**
   `startDate`/`endDate` and snapshotted prices
 - **MaintenanceHold** — takes a unit out of service for a window
@@ -147,6 +170,7 @@ npm run hold:test       # seed a maintenance hold
 npm run availability    # print a product's unavailable dates
 npm run booking:race    # race the service directly
 npm run booking:race:http   # race a running server over HTTP
+npm run stripe:e2e      # book, pay, hand over and return late, against Stripe
 ```
 
 `requests.http` holds ~40 saved requests including the deliberate failures —
@@ -162,6 +186,12 @@ past dates, reversed ranges, unknown slugs, illegal transitions.
 | `BETTER_AUTH_SECRET` | ≥32 bytes, `crypto.randomBytes(32).toString("base64")` |
 | `PORT` | defaults to 4000 |
 | `NODE_ENV` | `production` switches cookies to `SameSite=None; Secure` |
+| `STRIPE_SECRET_KEY` | optional — without it the API runs with payments off |
+| `STRIPE_WEBHOOK_SECRET` | optional — from `stripe listen`, or the dashboard |
+
+Stripe is optional on purpose: a missing key in one environment cannot take the
+whole API down, and the deployed site kept working while the keys were still
+being set up.
 
 `config/env.ts` parses all of it with zod and calls `process.exit(1)` on a bad
 value. Failing at boot with a readable message beats `undefined` surfacing three

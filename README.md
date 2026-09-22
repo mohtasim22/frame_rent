@@ -1,7 +1,13 @@
 # FrameRent
 
 A camera and lens rental platform. Browse gear, check real availability, book a
-date range, and manage the shop from an admin console.
+date range, pay by card, and run the shop from an admin console.
+
+**Live:** https://frame-rent-web.vercel.app  ·  **API:** https://frame-rent-api.onrender.com/health
+
+> The API is on Render's free tier and sleeps when idle — the first request may
+> take about 30 seconds. Payments run in Stripe **test mode**: pay with card
+> `4242 4242 4242 4242`, any future expiry, any CVC.
 
 Built as a **separate Express API and React client in one repository**.
 
@@ -65,6 +71,49 @@ $ npm run booking:race:http   # 4 simultaneous checkouts through real Express
 
 Two units, four customers, two winners, every unit booked exactly once.
 
+## How the money works
+
+Stripe, in test mode, with the deposit handled as an authorisation rather than a
+charge.
+
+```
+checkout     charge the rental, save the card       payment_intent, automatic capture
+webhook      payment_intent.succeeded               booking -> PAID -> CONFIRMED
+hand over    authorise the deposit off-session      capture_method: manual
+return       capture the late fee, release the rest amount_to_capture
+```
+
+**The deposit hold starts at hand-over, not at checkout.** An online card
+authorisation is valid for about seven days; a rental here can run for ninety.
+A hold placed at checkout would be dead long before the gear came back, so the
+card is saved at checkout (`setup_future_usage`) and the hold is placed
+off-session when the gear actually leaves the counter. Capturing €110 of a €350
+authorisation releases the remaining €240 automatically — no separate refund.
+
+**The webhook is the source of truth, not the browser.** `confirmPayment` only
+navigates. A booking becomes `CONFIRMED` when Stripe's signed, retried webhook
+says the money arrived, because a tab can close, a network can drop, and a URL
+can be faked. The route is mounted with `express.raw()` **before**
+`express.json()`: Stripe signs the exact bytes it sent, and a reserialised body
+never verifies.
+
+**Taking payment created an inventory problem.** A booking now exists in
+`PENDING` while the customer is typing their card, so it must hold its units —
+otherwise two people pay for the last camera. But an abandoned checkout would
+hold it forever. `paymentDueBy` gives it a 30-minute window, and
+`blockingBookingWhere()` is the single definition of "this booking is holding
+units", imported by availability, booked-ranges and the occupancy grid.
+
+Verified end to end against Stripe test mode — `npm run stripe:e2e` in `api/`
+books, pays, waits for the webhook, hands over, and returns late:
+
+```
+intent       16500 = the rental, NOT rental+deposit
+webhook      -> PAID, -> CONFIRMED, card saved
+hand over    35000 authorised, status requires_capture
+late return  11000 captured, 24000 released
+```
+
 ## Running it
 
 Requires Node 22 and a PostgreSQL database (this uses Neon).
@@ -95,10 +144,12 @@ to come from somewhere, and that somewhere should not be a form on the internet.
 | **API** | Node 22, Express 5, TypeScript (strict), Prisma 7 with driver adapters |
 | **Database** | PostgreSQL (Neon, ap-southeast-1) |
 | **Auth** | better-auth 1.7 — database sessions, HttpOnly cookies |
+| **Payments** | Stripe — Payment Element, webhooks, manual-capture deposit holds |
 | **Client** | Vite, React 19, React Router 8, TanStack Query v5, Zustand 5 |
 | **Styling** | Tailwind v4 + shadcn/ui |
 | **Validation** | zod 4, schemas shared by both halves |
 | **Testing** | Vitest — 67 tests over the pure domain rules |
+| **Hosting** | Render (API) + Vercel (client) + Neon (Postgres) |
 
 ## Decisions worth explaining
 
@@ -146,13 +197,16 @@ switch that makes sign-in survive the move off `localhost`.
 
 Honest list, because an interviewer will ask.
 
-- **The booking endpoint is not idempotent.** A retry after a timeout could
-  create a second booking. The fix is a client-generated idempotency key with a
-  unique constraint.
-- **No payments.** Stripe is designed for but not wired; totals are collected at
-  pickup.
+- **The booking endpoint is not idempotent.** A double submit through a flaky
+  connection could create two bookings. The Stripe calls *are* protected with
+  idempotency keys, so nobody is charged twice — but the booking rows are not.
+  The fix is a client-generated key with a unique constraint.
 - **No transactional email.** Booking references are shown on screen, not sent.
 - **Image URLs are entered by hand.** No upload pipeline.
+- **No product create/edit form in the admin UI.** The API does full CRUD; the
+  console only archives products and manages their units.
+- **Stripe is test mode only.** Going live needs a completed Stripe account and
+  a real webhook endpoint, not just a key swap.
 - **`FOR UPDATE` serialises checkout per product.** Correct, and fine at this
   scale, but two people booking different units of the same product still queue
   behind each other.

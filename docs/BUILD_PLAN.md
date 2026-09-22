@@ -63,10 +63,13 @@ The backlog breaks these into 66 vertical slices.
 - [x] **F — Booking.** Server-side pricing, the transaction, the race test.
 - [x] **G — Auth across two origins.** The cookie tax.
 - [x] **H — Admin.** Inventory, units, holds, booking lifecycle. (H6 image upload needs a Cloudinary/UploadThing account.)
-- [~] **I — Ship.** Reviews (I4), polish (I5) and both READMEs (I6) are done.
-      D9/I1 deploy is prepared and documented in DEPLOY.md — it needs your
-      Render, Vercel and Neon accounts to actually run.
-      Blocked on API keys: I2 Stripe, I3 Resend.
+- [~] **I — Ship.** Deployed and live. Stripe (I2) is wired and verified end to
+      end in test mode; reviews (I4), polish (I5) and both READMEs (I6) done.
+      Left: I3 transactional email (needs a Resend key), H6 image upload (needs
+      a Cloudinary/UploadThing account), the admin product form, and an
+      idempotency key on POST /bookings.
+
+**Live:** https://frame-rent-web.vercel.app · https://frame-rent-api.onrender.com
 
 ## The rule that shapes everything
 
