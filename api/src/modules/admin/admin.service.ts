@@ -274,6 +274,20 @@ export const adminService = {
     });
   },
 
+  async setProductImages(id: string, images: string[]) {
+    const exists = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (exists === null) throw new NotFoundError("No such product");
+
+    return prisma.product.update({
+      where: { id },
+      data: { images },
+      select: { id: true, slug: true, images: true },
+    });
+  },
+
   /* ------------------------------------------------------------------- units */
 
   async listUnits(productId: string): Promise<UnitRow[]> {

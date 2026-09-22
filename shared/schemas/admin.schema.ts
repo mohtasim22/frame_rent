@@ -7,6 +7,14 @@ import {
 import { MOUNTS, productSpecsSchema } from "./specs.schema";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * z.url() accepts any scheme the URL constructor does, including `javascript:`
+ * and `data:`. An image address has no business being either.
+ */
+const imageUrl = z
+  .url()
+  .refine((value) => value.startsWith("https://"), "images must be https URLs");
 const dateString = z.string().regex(DATE_PATTERN, "must be YYYY-MM-DD");
 const isDate = (value: string) => DATE_PATTERN.test(value);
 
@@ -62,7 +70,7 @@ export const productInputSchema = z.object({
     .max(120)
     .regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and hyphens only"),
   description: z.string().min(1).max(4000),
-  images: z.array(z.url()).max(8).default([]),
+  images: z.array(imageUrl).max(8).default([]),
   specs: productSpecsSchema,
   dailyRateCents: z.number().int().positive(),
   weeklyRateCents: z.number().int().positive().nullable().default(null),
@@ -121,6 +129,22 @@ export const holdRowSchema = z.object({
   reason: z.string(),
   start: z.string(),
   end: z.string(),
+});
+
+/* ------------------------------------------------------------------ uploads */
+
+export const uploadSignatureSchema = z.object({
+  cloudName: z.string(),
+  apiKey: z.string(),
+  timestamp: z.number().int(),
+  folder: z.string(),
+  signature: z.string(),
+});
+
+export type UploadSignature = z.infer<typeof uploadSignatureSchema>;
+
+export const productImagesSchema = z.object({
+  images: z.array(imageUrl).max(8),
 });
 
 /* ----------------------------------------------------------------- dashboard */

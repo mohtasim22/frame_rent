@@ -212,6 +212,37 @@ instead. It is mounted with `express.raw()` **before** `express.json()`,
 because Stripe signs the exact bytes it sent and a reserialised body never
 verifies.
 
+---
+
+## Image uploads (optional)
+
+Like Stripe, Cloudinary is optional — without it the admin console simply has
+no upload button and image URLs are typed in by hand.
+
+Cloudinary → **Dashboard → API keys**, then add to **Render**:
+
+```
+CLOUDINARY_CLOUD_NAME   your-cloud-name
+CLOUDINARY_API_KEY      123456789012345
+CLOUDINARY_API_SECRET   ...
+```
+
+Nothing goes in Vercel: the browser receives a one-time signature from the API
+and needs no Cloudinary credentials of its own.
+
+### Signed, not unsigned
+
+The browser uploads the file straight to Cloudinary, so multi-megabyte requests
+never touch the API. But it can only do that with a signature from
+`POST /api/v1/admin/uploads/signature`, which sits behind `requireAdmin`.
+
+The simpler alternative — an unsigned upload preset — puts the preset name in
+the JavaScript bundle, and anybody who opens devtools can then upload to the
+account. Signing keeps the secret on the server and the decision with it.
+
+Removing an image only drops the reference; the file stays in Cloudinary,
+because deleting it would break any page still pointing at the old URL.
+
 ## If it breaks
 
 **Sign-in works, then everything is 401.** `WEB_ORIGIN` does not exactly match

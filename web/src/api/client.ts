@@ -60,7 +60,7 @@ function isEnvelope(value: unknown): value is ApiSuccess<unknown> | ApiFailure {
 }
 
 async function request<T>(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body: unknown,
   { query, schema, signal }: RequestOptions<T> = {},
@@ -111,6 +111,7 @@ async function request<T>(
 export const api = {
   get: <T>(path: string, options?: RequestOptions<T>) => request<T>("GET", path, undefined, options),
   post: <T>(path: string, body: unknown, options?: RequestOptions<T>) => request<T>("POST", path, body, options),
+  put: <T>(path: string, body: unknown, options?: RequestOptions<T>) => request<T>("PUT", path, body, options),
   patch: <T>(path: string, body: unknown, options?: RequestOptions<T>) => request<T>("PATCH", path, body, options),
   delete: <T>(path: string, options?: RequestOptions<T>) => request<T>("DELETE", path, undefined, options),
 };

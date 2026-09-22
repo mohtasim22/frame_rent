@@ -5,6 +5,7 @@ import {
   adminBookingQuerySchema,
   holdInputSchema,
   occupancyQuerySchema,
+  productImagesSchema,
   productInputSchema,
   productPatchSchema,
   returnBookingSchema,
@@ -14,6 +15,8 @@ import {
 } from "@shared/schemas/admin.schema";
 import { bookingReferenceParamsSchema } from "@shared/schemas/booking.schema";
 import { adminService } from "./admin.service";
+import { signUpload, uploadsEnabled } from "../../lib/cloudinary";
+import { ServiceUnavailableError } from "../../lib/errors";
 
 const idParams = z.object({ id: z.string().min(1) });
 
@@ -82,6 +85,26 @@ export const adminController = {
     res.json({ success: true, data: product } satisfies ApiSuccess<
       typeof product
     >);
+  },
+
+  async uploadSignature(_req: Request, res: Response) {
+    if (!uploadsEnabled) {
+      throw new ServiceUnavailableError(
+        "Image uploads are not configured on this server",
+        "UPLOADS_DISABLED",
+      );
+    }
+
+    const data = signUpload();
+    res.json({ success: true, data } satisfies ApiSuccess<typeof data>);
+  },
+
+  async setProductImages(req: Request, res: Response) {
+    const { id } = idParams.parse(req.params);
+    const { images } = productImagesSchema.parse(req.body);
+
+    const product = await adminService.setProductImages(id, images);
+    res.json({ success: true, data: product } satisfies ApiSuccess<typeof product>);
   },
 
   async listUnits(req: Request, res: Response) {

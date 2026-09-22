@@ -19,6 +19,9 @@ adminRoutes.post("/products", adminController.createProduct);
 adminRoutes.patch("/products/:id", adminController.updateProduct);
 adminRoutes.delete("/products/:id", adminController.archiveProduct);
 
+adminRoutes.post("/uploads/signature", adminController.uploadSignature);
+adminRoutes.put("/products/:id/images", adminController.setProductImages);
+
 adminRoutes.get("/products/:id/units", adminController.listUnits);
 adminRoutes.post("/products/:id/units", adminController.addUnit);
 adminRoutes.patch("/units/:id", adminController.updateUnit);

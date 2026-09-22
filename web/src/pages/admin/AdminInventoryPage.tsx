@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { formatCents } from "@/lib/format";
 import { useGear } from "@/hooks/useGear";
+import { ImageManager } from "@/components/admin/ImageManager";
 import {
   useAddUnit,
   useArchiveProduct,
@@ -179,6 +180,7 @@ export function AdminInventoryPage() {
   const gear = useGear({ perPage: 48, sort: "name" });
   const archive = useArchiveProduct();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
+  const [openImages, setOpenImages] = useState<string | null>(null);
 
   return (
     <div>
@@ -211,6 +213,16 @@ export function AdminInventoryPage() {
                   size="sm"
                   variant="outline"
                   onClick={() =>
+                    setOpenImages(openImages === item.id ? null : item.id)
+                  }
+                >
+                  {openImages === item.id ? "Hide images" : "Images"}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
                     setOpenProduct(openProduct === item.id ? null : item.id)
                   }
                 >
@@ -226,6 +238,14 @@ export function AdminInventoryPage() {
                   Archive
                 </Button>
               </div>
+
+              {openImages === item.id && (
+                <ImageManager
+                  productId={item.id}
+                  productName={item.name}
+                  images={item.images}
+                />
+              )}
 
               {openProduct === item.id && <UnitPanel productId={item.id} />}
             </li>
