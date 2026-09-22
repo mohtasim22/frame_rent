@@ -79,7 +79,7 @@ Quoting is public on purpose: the cart shows a total before anyone signs in.
 
 | Method | Path | |
 | --- | --- | --- |
-| `POST` | `/api/v1/bookings` | the transaction. `201`, or `409 UNIT_UNAVAILABLE` |
+| `POST` | `/api/v1/bookings` | the transaction. `201`, or `409 UNIT_UNAVAILABLE`. Send `Idempotency-Key` |
 | `GET` | `/api/v1/bookings/mine?scope=upcoming\|past\|all` | |
 | `GET` | `/api/v1/bookings/:reference` | **404**, not 403, for someone else's booking |
 | `POST` | `/api/v1/bookings/:reference/cancel` | PENDING and more than 48h out |
@@ -119,6 +119,21 @@ Every handler uses `updateMany` rather than `update`, so a duplicate delivery
 matches nothing instead of throwing. A 500 asks Stripe to retry, which means
 each handler has to be safe to run twice — retries and duplicate deliveries
 both happen.
+
+### Idempotency
+
+`POST /bookings` accepts an `Idempotency-Key` header. The same key returns the
+same booking instead of creating another, so a double submit or a retry after a
+timeout cannot take two cameras off the shelf.
+
+The pre-check that looks the key up first is only a shortcut. The guarantee is
+the `UNIQUE` constraint on `bookings.idempotencyKey`: simultaneous submits all
+pass the check, the database rejects every insert but one, and the losers catch
+`P2002` and return what the winner made. Five concurrent submits with one key
+produce exactly one row.
+
+Without the header the endpoint behaves as before — duplicates are possible,
+which is the honest default for a client that has not opted in.
 
 ## The booking lifecycle
 

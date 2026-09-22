@@ -184,6 +184,14 @@ model Booking {
   depositStatus   DepositStatus @default(NONE)
   depositIntentId String?       @unique
 
+  /**
+   * Supplied by the client, one per checkout attempt. The UNIQUE constraint is
+   * what actually makes this work: two simultaneous submits both try to insert
+   * the same key, the database rejects the loser, and the loser returns the
+   * booking the winner made.
+   */
+  idempotencyKey String? @unique
+
   // While a booking is PENDING and unpaid it still holds its units, but only
   // until this moment — otherwise an abandoned checkout blocks a camera
   // forever. Cleared once payment succeeds.

@@ -24,7 +24,16 @@ export const bookingController = {
 
   async create(req: Request, res: Response) {
     const parsed = createBookingSchema.parse(req.body);
-    const booking = await bookingService.create(parsed, req.user!);
+
+    // The IETF/Stripe convention: a header, not a body field, because it is
+    // about the REQUEST rather than the booking being described.
+    const header = req.headers["idempotency-key"];
+    const idempotencyKey =
+      typeof header === "string" && header.length >= 8 && header.length <= 200
+        ? header
+        : undefined;
+
+    const booking = await bookingService.create(parsed, req.user!, idempotencyKey);
 
     const body: ApiSuccess<BookingResponse> = { success: true, data: booking };
     res.status(201).json(body);

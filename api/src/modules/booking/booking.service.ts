@@ -162,8 +162,31 @@ export const bookingService = {
    * rates are not what the race is about, and holding the lock for longer than
    * necessary is how you turn a correctness fix into a throughput problem.
    */
-  async create(input: CreateBooking, user: AuthUser): Promise<BookingResponse> {
+  async create(
+    input: CreateBooking,
+    user: AuthUser,
+    idempotencyKey?: string,
+  ): Promise<BookingResponse> {
     const { lines } = input;
+
+    // Cheap path: the client retried and we already have the answer.
+    if (idempotencyKey) {
+      const existing = await prisma.booking.findUnique({
+        where: { idempotencyKey },
+        select: { reference: true, userId: true },
+      });
+
+      if (existing) {
+        if (existing.userId !== user.id) {
+          throw new ConflictError(
+            "That idempotency key belongs to someone else",
+            "IDEMPOTENCY_KEY_REUSED",
+          );
+        }
+
+        return bookingService.getByReference(existing.reference, user);
+      }
+    }
 
     rejectPastDates(lines);
     const bySlug = await loadProducts(lines);
@@ -174,52 +197,73 @@ export const bookingService = {
       ...new Set([...bySlug.values()].map((product) => product.id)),
     ].sort();
 
-    return prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw(Prisma.sql`
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw(Prisma.sql`
           SELECT id FROM gear_units
           WHERE "productId" IN (${Prisma.join(productIds)})
           ORDER BY id
           FOR UPDATE
         `);
 
-        // Sequential, not Promise.all: each line must see what the previous took.
-        const taken = new Set<string>();
-        const allocations: Allocation[] = [];
+          // Sequential, not Promise.all: each line must see what the previous took.
+          const taken = new Set<string>();
+          const allocations: Allocation[] = [];
 
-        for (const line of lines) {
-          const product = bySlug.get(line.slug)!;
+          for (const line of lines) {
+            const product = bySlug.get(line.slug)!;
 
-          // `tx` — reading through the transaction that holds the lock is what
-          // turns this from a hint into a decision.
-          const unitId = await availabilityService.findAvailableUnit(
-            product.id,
-            line.start,
-            line.end,
-            taken,
-            tx,
-          );
-
-          if (unitId === null) {
-            throw new ConflictError(
-              `${product.name} is not available ${line.start} to ${line.end}`,
-              "UNIT_UNAVAILABLE",
+            // `tx` — reading through the transaction that holds the lock is what
+            // turns this from a hint into a decision.
+            const unitId = await availabilityService.findAvailableUnit(
+              product.id,
+              line.start,
+              line.end,
+              taken,
+              tx,
             );
+
+            if (unitId === null) {
+              throw new ConflictError(
+                `${product.name} is not available ${line.start} to ${line.end}`,
+                "UNIT_UNAVAILABLE",
+              );
+            }
+
+            taken.add(unitId);
+            allocations.push({
+              line,
+              product,
+              unitId,
+              quote: quoteRental(product, rentalDays(line.start, line.end)),
+            });
           }
 
-          taken.add(unitId);
-          allocations.push({
-            line,
-            product,
-            unitId,
-            quote: quoteRental(product, rentalDays(line.start, line.end)),
-          });
-        }
+          return writeBooking(tx, input, allocations, user, idempotencyKey);
+        },
+        { timeout: 20_000, maxWait: 10_000 },
+      );
+    } catch (error) {
+      // Two submits raced past the check above and both tried to insert the
+      // same key. The database rejected the loser; the loser returns what the
+      // winner made. THIS is the guarantee — the pre-check is only a shortcut.
+      if (
+        idempotencyKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const winner = await prisma.booking.findUnique({
+          where: { idempotencyKey },
+          select: { reference: true },
+        });
 
-        return writeBooking(tx, input, allocations, user);
-      },
-      { timeout: 20_000, maxWait: 10_000 },
-    );
+        if (winner)
+          return bookingService.getByReference(winner.reference, user);
+      }
+
+      throw error;
+    }
   },
 
   async listMine(
@@ -400,6 +444,7 @@ async function writeBooking(
   input: CreateBooking,
   allocations: Allocation[],
   user: AuthUser,
+  idempotencyKey?: string,
 ): Promise<BookingResponse> {
   const subtotalCents = allocations.reduce(
     (sum, a) => sum + a.quote.subtotalCents,
@@ -440,6 +485,7 @@ async function writeBooking(
       pickupMethod: input.pickupMethod,
       notes: input.notes,
       userId: user.id,
+      idempotencyKey: idempotencyKey ?? null,
       // With payments on, the booking holds its units only while the customer
       // is paying. Without Stripe configured nothing expires and the booking
       // behaves exactly as it did before.

@@ -197,10 +197,6 @@ switch that makes sign-in survive the move off `localhost`.
 
 Honest list, because an interviewer will ask.
 
-- **The booking endpoint is not idempotent.** A double submit through a flaky
-  connection could create two bookings. The Stripe calls *are* protected with
-  idempotency keys, so nobody is charged twice — but the booking rows are not.
-  The fix is a client-generated key with a unique constraint.
 - **No transactional email.** Booking references are shown on screen, not sent.
 - **Image URLs are entered by hand.** No upload pipeline.
 - **No product create/edit form in the admin UI.** The API does full CRUD; the

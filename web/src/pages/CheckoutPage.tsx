@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,6 +47,14 @@ export function CheckoutPage() {
   const summary = summariseCart(lines, format(new Date(), "yyyy-MM-dd"));
   const quote = useQuote(lines, { enabled: !summary.hasExpired });
   const booking = useCreateBooking();
+
+  /**
+   * One key for this checkout attempt, generated once and kept in a ref so a
+   * re-render cannot change it. A retry after a timeout then reaches the server
+   * carrying the SAME key, and the server returns the original booking instead
+   * of making a second one.
+   */
+  const idempotencyKey = useRef(crypto.randomUUID());
   const intent = useCreatePaymentIntent();
 
   const form = useForm<CheckoutForm>({
@@ -103,6 +111,7 @@ export function CheckoutPage() {
 
   function onSubmit(values: CheckoutForm) {
     booking.mutate({
+      idempotencyKey: idempotencyKey.current,
       lines: lines.map(({ slug, start, end }) => ({ slug, start, end })),
       phone: values.phone === "" ? undefined : values.phone,
       pickupMethod: values.pickupMethod,

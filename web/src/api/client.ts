@@ -28,6 +28,7 @@ type RequestOptions<T> = {
   query?: Record<string, QueryValue>;
   schema?: ZodType<T>;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 };
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -63,7 +64,7 @@ async function request<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body: unknown,
-  { query, schema, signal }: RequestOptions<T> = {},
+  { query, schema, signal, headers }: RequestOptions<T> = {},
 ): Promise<ApiResult<T>> {
   let res: Response;
 
@@ -72,7 +73,10 @@ async function request<T>(
       method,
       credentials: "include",
       signal,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: {
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...headers,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (err) {

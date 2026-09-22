@@ -15,8 +15,14 @@ export function postQuote(body: QuoteRequest, signal?: AbortSignal) {
   });
 }
 
-export function createBooking(body: CreateBooking) {
-  return api.post("/api/v1/bookings", body, { schema: bookingResponseSchema });
+export function createBooking({
+  idempotencyKey,
+  ...body
+}: CreateBooking & { idempotencyKey: string }) {
+  return api.post("/api/v1/bookings", body, {
+    schema: bookingResponseSchema,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
 }
 
 export function getBooking(reference: string, signal?: AbortSignal) {
