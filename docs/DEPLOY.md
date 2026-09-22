@@ -243,6 +243,23 @@ account. Signing keeps the secret on the server and the decision with it.
 Removing an image only drops the reference; the file stays in Cloudinary,
 because deleting it would break any page still pointing at the old URL.
 
+### The API key needs a role
+
+Cloudinary keys are scoped. A newly created key authenticates happily and is
+still forbidden from doing anything:
+
+```
+admin api ping     ok
+upload             403  missing permissions (actions=["create"])
+```
+
+`ping` succeeding proves only that the key is real, not that it is permitted.
+In **Settings → API Keys**, either use the account's default key pair or give
+this one a role that allows Upload API `create`.
+
+`npm run upload:e2e` in `api/` checks the whole path — signature, upload,
+tampered-signature rejection, and the image appearing in the public catalogue.
+
 ## If it breaks
 
 **Sign-in works, then everything is 401.** `WEB_ORIGIN` does not exactly match

@@ -18,7 +18,8 @@
     "make:admin": "tsx --env-file=.env scripts/make-admin.ts",
     "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
-    "stripe:e2e": "tsx --env-file=.env scripts/stripe-e2e.ts"
+    "stripe:e2e": "tsx --env-file=.env scripts/stripe-e2e.ts",
+    "upload:e2e": "tsx --env-file=.env scripts/upload-e2e.ts"
   },
   "engines": {
     "node": ">=22 <25"
