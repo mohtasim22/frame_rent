@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { formatCents } from "@/lib/format";
 import { useGear } from "@/hooks/useGear";
 import { ImageManager } from "@/components/admin/ImageManager";
+import { ProductForm } from "@/components/admin/ProductForm";
 import {
   useAddUnit,
   useArchiveProduct,
@@ -181,13 +182,24 @@ export function AdminInventoryPage() {
   const archive = useArchiveProduct();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [openImages, setOpenImages] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Units, conditions and maintenance holds.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Products, units, images and maintenance holds.
+          </p>
+        </div>
+
+        <Button onClick={() => setCreating((open) => !open)}>
+          {creating ? "Close" : "New product"}
+        </Button>
+      </div>
+
+      {creating && <ProductForm onDone={() => setCreating(false)} />}
 
       {gear.isPending && <Skeleton className="mt-6 h-96 w-full rounded-xl" />}
       {gear.isError && (
