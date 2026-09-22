@@ -199,8 +199,6 @@ Honest list, because an interviewer will ask.
 
 - **No transactional email.** Booking references are shown on screen, not sent.
 - **Image URLs are entered by hand.** No upload pipeline.
-- **The admin can create and archive products, but not edit an existing one.**
-  The API supports `PATCH`; the console does not surface it yet.
 - **Stripe is test mode only.** Going live needs a completed Stripe account and
   a real webhook endpoint, not just a key swap.
 - **`FOR UPDATE` serialises checkout per product.** Correct, and fine at this

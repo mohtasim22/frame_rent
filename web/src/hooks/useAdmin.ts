@@ -8,8 +8,10 @@ import {
   getAdminBookings,
   getDashboard,
   getOccupancy,
+  getAdminProducts,
   getUnits,
   returnBooking,
+  setProductActive,
   transitionBooking,
   updateUnit,
 } from "@/api/admin";
@@ -22,6 +24,7 @@ function useAdminInvalidation() {
     queryClient.invalidateQueries({ queryKey: ["admin"] });
     queryClient.invalidateQueries({ queryKey: ["availability"] });
     queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    queryClient.invalidateQueries({ queryKey: ["gear"] });
   };
 }
 
@@ -135,6 +138,26 @@ export function useArchiveProduct() {
 
   return useMutation({
     mutationFn: archiveProduct,
+    retry: false,
+    onSuccess: invalidate,
+  });
+}
+
+export function useAdminProducts() {
+  return useQuery({
+    queryKey: ["admin", "products"],
+    queryFn: ({ signal }) => getAdminProducts(signal),
+    select: (result) => result.data,
+    staleTime: 15_000,
+  });
+}
+
+export function useSetProductActive() {
+  const invalidate = useAdminInvalidation();
+
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      setProductActive(id, isActive),
     retry: false,
     onSuccess: invalidate,
   });

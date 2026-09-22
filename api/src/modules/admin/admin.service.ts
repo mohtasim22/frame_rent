@@ -229,6 +229,22 @@ export const adminService = {
 
   /* ---------------------------------------------------------------- products */
 
+  /**
+   * Every product, archived ones included. The public catalogue filters on
+   * isActive, so without this an archived product would be invisible to the
+   * admin too — making "archive" a one-way door.
+   */
+  async listProducts() {
+    return prisma.product.findMany({
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+      include: {
+        brand: { select: { id: true, name: true, slug: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        _count: { select: { units: true } },
+      },
+    });
+  },
+
   async createProduct(input: ProductInput) {
     return prisma.product.create({
       data: { ...input, specs: input.specs as Prisma.InputJsonValue },

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   adminBookingRowSchema,
+  adminProductSchema,
   dashboardSchema,
   holdRowSchema,
   occupancySchema,
@@ -16,6 +17,7 @@ import { api } from "./client";
 
 const bookingRows = z.array(adminBookingRowSchema);
 const unitRows = z.array(unitRowSchema);
+const adminProducts = z.array(adminProductSchema);
 
 export function getAdminBookings(
   query: Partial<AdminBookingQuery>,
@@ -97,6 +99,16 @@ const productWriteSchema = z.object({
   name: z.string().optional(),
   isActive: z.boolean().optional(),
 });
+
+export function getAdminProducts(signal?: AbortSignal) {
+  return api.get("/api/v1/admin/products", { schema: adminProducts, signal });
+}
+
+export function setProductActive(id: string, isActive: boolean) {
+  return api.patch(`/api/v1/admin/products/${id}`, { isActive }, {
+    schema: productWriteSchema,
+  });
+}
 
 export function createProduct(body: ProductInput) {
   return api.post("/api/v1/admin/products", body, { schema: productWriteSchema });

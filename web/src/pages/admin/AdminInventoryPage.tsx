@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { formatCents } from "@/lib/format";
-import { useGear } from "@/hooks/useGear";
 import { ImageManager } from "@/components/admin/ImageManager";
 import { ProductForm } from "@/components/admin/ProductForm";
 import {
   useAddUnit,
-  useArchiveProduct,
+  useAdminProducts,
   useCreateHold,
+  useSetProductActive,
   useUnits,
   useUpdateUnit,
 } from "@/hooks/useAdmin";
@@ -178,11 +178,12 @@ function UnitPanel({ productId }: { productId: string }) {
 }
 
 export function AdminInventoryPage() {
-  const gear = useGear({ perPage: 48, sort: "name" });
-  const archive = useArchiveProduct();
+  const gear = useAdminProducts();
+  const setActive = useSetProductActive();
   const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [openImages, setOpenImages] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <div>
@@ -210,10 +211,16 @@ export function AdminInventoryPage() {
 
       {gear.isSuccess && (
         <ul className="mt-6 space-y-2">
-          {gear.data.data.map((item) => (
-            <li key={item.id} className="rounded-xl border p-4">
+          {gear.data.map((item) => (
+            <li
+              key={item.id}
+              className={`rounded-xl border p-4 ${item.isActive ? "" : "opacity-60"}`}
+            >
               <div className="flex flex-wrap items-center gap-3">
-                <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {item.name}
+                </span>
+                {!item.isActive && <Badge variant="outline">Archived</Badge>}
                 <Badge variant="secondary">
                   {item._count.units} {item._count.units === 1 ? "unit" : "units"}
                 </Badge>
@@ -243,13 +250,27 @@ export function AdminInventoryPage() {
 
                 <Button
                   size="sm"
-                  variant="ghost"
-                  disabled={archive.isPending}
-                  onClick={() => archive.mutate(item.id)}
+                  variant="outline"
+                  onClick={() => setEditing(editing === item.id ? null : item.id)}
                 >
-                  Archive
+                  {editing === item.id ? "Close" : "Edit"}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={setActive.isPending}
+                  onClick={() =>
+                    setActive.mutate({ id: item.id, isActive: !item.isActive })
+                  }
+                >
+                  {item.isActive ? "Archive" : "Restore"}
                 </Button>
               </div>
+
+              {editing === item.id && (
+                <ProductForm product={item} onDone={() => setEditing(null)} />
+              )}
 
               {openImages === item.id && (
                 <ImageManager
@@ -265,8 +286,8 @@ export function AdminInventoryPage() {
         </ul>
       )}
 
-      {archive.isError && (
-        <p className="mt-4 text-sm text-destructive">{archive.error.message}</p>
+      {setActive.isError && (
+        <p className="mt-4 text-sm text-destructive">{setActive.error.message}</p>
       )}
     </div>
   );

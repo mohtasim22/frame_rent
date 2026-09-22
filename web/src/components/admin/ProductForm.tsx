@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { productInputSchema } from "@shared/schemas/admin.schema";
-import type { ProductInput } from "@shared/schemas/admin.schema";
+import type { AdminProduct, ProductInput } from "@shared/schemas/admin.schema";
 import type { ProductSpecs } from "@shared/schemas/specs.schema";
 import { z } from "zod";
 import { api } from "@/api/client";
@@ -58,21 +58,54 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export function ProductForm({ onDone }: { onDone: () => void }) {
+/** Turns an existing product back into the form's string-and-euro shape. */
+function toDraft(product: AdminProduct): Draft {
+  const euro = (cents: number | null) =>
+    cents === null ? "" : (cents / 100).toFixed(2);
+
+  return {
+    name: product.name,
+    slug: product.slug,
+    description: product.description,
+    dailyRate: euro(product.dailyRateCents),
+    weeklyRate: euro(product.weeklyRateCents),
+    deposit: euro(product.depositCents),
+    replacement: euro(product.replacementCents),
+    bufferDays: String(product.bufferDays),
+    brandId: product.brand.id,
+    categoryId: product.category.id,
+    specs: product.specs,
+  };
+}
+
+export function ProductForm({
+  product,
+  onDone,
+}: {
+  product?: AdminProduct;
+  onDone: () => void;
+}) {
   const queryClient = useQueryClient();
   const brands = useBrands();
   const categories = useCategories();
 
-  const [draft, setDraft] = useState<Draft>(BLANK);
+  const editing = product !== undefined;
+
+  const [draft, setDraft] = useState<Draft>(
+    product ? toDraft(product) : BLANK,
+  );
   const [issues, setIssues] = useState<string[]>([]);
 
   const create = useMutation({
     mutationFn: (input: ProductInput) =>
-      api.post("/api/v1/admin/products", input, { schema: result }),
+      editing
+        ? api.patch(`/api/v1/admin/products/${product.id}`, input, { schema: result })
+        : api.post("/api/v1/admin/products", input, { schema: result }),
     retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gear"] });
-      setDraft(BLANK);
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      if (!editing) setDraft(BLANK);
       onDone();
     },
   });
@@ -88,7 +121,8 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
       name: draft.name,
       slug: draft.slug || slugify(draft.name),
       description: draft.description,
-      images: [],
+      // Images are managed by their own panel, so an edit must not wipe them.
+      images: product?.images ?? [],
       specs: draft.specs,
       dailyRateCents: toCents(draft.dailyRate),
       weeklyRateCents: draft.weeklyRate === "" ? null : toCents(draft.weeklyRate),
@@ -96,7 +130,7 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
       replacementCents: toCents(draft.replacement),
       mount: "mount" in draft.specs ? draft.specs.mount : null,
       bufferDays: Number(draft.bufferDays),
-      isActive: true,
+      isActive: product?.isActive ?? true,
       brandId: draft.brandId,
       categoryId: draft.categoryId,
     });
@@ -118,7 +152,7 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
   return (
     <div className="mt-4 rounded-xl border p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        New product
+        {editing ? `Edit ${product.name}` : "New product"}
       </h2>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -272,7 +306,11 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
 
       <div className="mt-4 flex gap-2">
         <Button onClick={submit} disabled={create.isPending}>
-          {create.isPending ? "Creating…" : "Create product"}
+          {create.isPending
+            ? "Saving…"
+            : editing
+              ? "Save changes"
+              : "Create product"}
         </Button>
         <Button variant="ghost" onClick={onDone}>
           Cancel
@@ -280,7 +318,9 @@ export function ProductForm({ onDone }: { onDone: () => void }) {
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Add units and images from the list once it exists.
+        {editing
+          ? "Images and units are managed from their own panels."
+          : "Add units and images from the list once it exists."}
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import {
   UNIT_STATUSES,
 } from "../types/domain";
 import { MOUNTS, productSpecsSchema } from "./specs.schema";
+import { gearItemSchema } from "./gear.schema";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -62,7 +63,19 @@ export type ReturnBooking = z.infer<typeof returnBookingSchema>;
 
 /* ------------------------------------------------------------------ products */
 
-export const productInputSchema = z.object({
+/**
+ * The fields, with NO defaults.
+ *
+ * This split exists because of a data-loss bug: `.partial()` does not remove a
+ * `.default()`, it only makes the key optional — so a PATCH that never
+ * mentioned `images` still parsed to `images: []` and wiped them, and one that
+ * only set `isActive` silently reset bufferDays, mount and the weekly rate too.
+ *
+ * Defaults belong to CREATE, where an absent field genuinely means "use the
+ * default". On an update an absent field means "leave it alone", which is the
+ * opposite.
+ */
+const productFields = z.object({
   name: z.string().min(1).max(160),
   slug: z
     .string()
@@ -70,22 +83,42 @@ export const productInputSchema = z.object({
     .max(120)
     .regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and hyphens only"),
   description: z.string().min(1).max(4000),
-  images: z.array(imageUrl).max(8).default([]),
+  images: z.array(imageUrl).max(8),
   specs: productSpecsSchema,
   dailyRateCents: z.number().int().positive(),
-  weeklyRateCents: z.number().int().positive().nullable().default(null),
+  weeklyRateCents: z.number().int().positive().nullable(),
   depositCents: z.number().int().nonnegative(),
   replacementCents: z.number().int().nonnegative(),
-  mount: z.enum(MOUNTS).nullable().default(null),
-  bufferDays: z.number().int().min(0).max(14).default(1),
-  isActive: z.boolean().default(true),
+  mount: z.enum(MOUNTS).nullable(),
+  bufferDays: z.number().int().min(0).max(14),
+  isActive: z.boolean(),
   brandId: z.string().min(1),
   categoryId: z.string().min(1),
 });
 
+export const productInputSchema = productFields.extend({
+  images: z.array(imageUrl).max(8).default([]),
+  weeklyRateCents: z.number().int().positive().nullable().default(null),
+  mount: z.enum(MOUNTS).nullable().default(null),
+  bufferDays: z.number().int().min(0).max(14).default(1),
+  isActive: z.boolean().default(true),
+});
+
 export type ProductInput = z.infer<typeof productInputSchema>;
 
-export const productPatchSchema = productInputSchema.partial();
+/** Absent means "leave it alone" — never "reset it". */
+export const productPatchSchema = productFields.partial();
+
+/**
+ * Same shape the catalogue returns, plus `isActive` — the admin needs to see
+ * archived products in order to bring one back, and the public list filters
+ * them out by design.
+ */
+export const adminProductSchema = gearItemSchema.extend({
+  isActive: z.boolean(),
+});
+
+export type AdminProduct = z.infer<typeof adminProductSchema>;
 
 /* --------------------------------------------------------------------- units */
 

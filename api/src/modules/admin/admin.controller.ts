@@ -57,6 +57,11 @@ export const adminController = {
     res.json({ success: true, data: row } satisfies ApiSuccess<typeof row>);
   },
 
+  async listProducts(_req: Request, res: Response) {
+    const products = await adminService.listProducts();
+    res.json({ success: true, data: products } satisfies ApiSuccess<typeof products>);
+  },
+
   async createProduct(req: Request, res: Response) {
     const input = productInputSchema.parse(req.body);
     const product = await adminService.createProduct(input);

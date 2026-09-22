@@ -15,6 +15,7 @@ adminRoutes.get("/bookings", adminController.listBookings);
 adminRoutes.post("/bookings/:reference/status", adminController.transition);
 adminRoutes.post("/bookings/:reference/return", adminController.receiveReturn);
 
+adminRoutes.get("/products", adminController.listProducts);
 adminRoutes.post("/products", adminController.createProduct);
 adminRoutes.patch("/products/:id", adminController.updateProduct);
 adminRoutes.delete("/products/:id", adminController.archiveProduct);

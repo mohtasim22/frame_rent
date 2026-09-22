@@ -103,7 +103,8 @@ protected by default rather than protected if somebody remembers.
 | `GET` | `/api/v1/admin/bookings` | filter by status, date, search; paginated |
 | `POST` | `/api/v1/admin/bookings/:reference/status` | `409 ILLEGAL_TRANSITION` |
 | `POST` | `/api/v1/admin/bookings/:reference/return` | condition + late fee |
-| `POST` `PATCH` `DELETE` | `/api/v1/admin/products[/:id]` | delete = archive |
+| `GET` | `/api/v1/admin/products` | every product, **archived ones included** |
+| `POST` `PATCH` `DELETE` | `/api/v1/admin/products[/:id]` | delete = archive; `PATCH { isActive: true }` restores |
 | `GET` `POST` | `/api/v1/admin/products/:id/units` | |
 | `PATCH` | `/api/v1/admin/units/:id` | `409` if retiring a unit with live bookings |
 | `POST` `DELETE` | `/api/v1/admin/holds[/:id]` | `409` if the window clashes |
@@ -160,7 +161,8 @@ Twelve models — nine of the domain, plus `Session`, `Account` and
 `Verification`, which better-auth owns. The ones that matter:
 
 - **Product** — catalogue entry, rates, `bufferDays`, JSON `specs` validated by
-  a zod discriminated union
+  a zod discriminated union. The public list filters on `isActive`; the admin
+  list does not, or archiving would be a one-way door
 - **GearUnit** — a physical item with a serial number, condition and status.
   Availability is decided per unit
 - **Booking** — reference, status, money, payment and deposit state, and dates
